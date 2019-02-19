@@ -14,12 +14,12 @@ from flask_wtf import FlaskForm
 from wtforms import StringField
 from werkzeug.utils import secure_filename
 from flask_wtf.file import FileField
-from ffmpy import FFmpeg
 import json
 import requests
 import uuid
 import time
 import datetime
+# import psycopg2
 
 # bucket_name = os.environ["IOSPROJECTBUCKET"]
 # s3 = boto3.client('s3')
@@ -27,10 +27,10 @@ import datetime
 
 
 app = Flask(__name__)
-if __name__ == "__main__":
-    # Only for debugging while developing
-    app.run(host='0.0.0.0', debug=True)
-
+app.config.from_object(os.environ['APP_SETTINGS'])
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+ma = Marshmallow(app)
 # configure logging
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] - %(threadName)-10s : %(message)s')
@@ -38,79 +38,36 @@ logging.basicConfig(level=logging.DEBUG,
 # configure pass folder destination folder
 app.config['PASS_FOLDER'] = './Pass Files'
 
-# configure images destination folder
-# app.config['UPLOADED_IMAGES_DEST'] = './images'
-# images = UploadSet('images', IMAGES)
-# configure_uploads(app, images)
+from models import Member, Pass
+if __name__ == "__main__":
+    # Only for debugging while developing
+    app.run(host='0.0.0.0', debug=True)
 
-# configure sqlite database
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['DEBUG'] = False
-app.config['TEST'] = False
-# app.config['CSRF_ENABLED'] = True
-# app.config['SECRET_KEY'] = 'replace_in_production'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
-
-# Change from hard-code to ENV variables
-# in final demo
-app.config.update(dict(
-    SECRET_KEY=os.environ["FLASKSECRETKEY"],
-    WTF_CSRF_SECRET_KEY=os.environ["FLASKCSRFKEY"]"
-))
 
 
 
 # model table
 
 
-class Member(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    member_level = db.Column(db.String(100), nullable=False)
-    status = db.Column(db.Boolean, nullable=False)
-    expiration_date = db.Column(db.DateTime(100), nullable=False)
-    associated_members = db.Column(db.String(100), nullable=False) # May need to remove
-    address_line_1 = db.Column(db.String(100), nullable=False)
-    address_line_2 = db.Column(db.String(100), nullable=False)
-    city = db.Column(db.String(100), nullable=False)
-    state = db.Column(db.String(100), nullable=False)
-    zip = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100, nullable=False))
-    passes = db.relationship('Pass', backref='person', lazy=True)
-
-#name, id, position
 
 
-class Pass(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    file_name = db.Column(db.String(300))
-    member_id = db.Column(db.Integer, db.ForeignKey('member.id'), nullable=False)
-    active = db.Column(db.Boolean)
-
-    def __init__(self, file_name, active, member_id):
-        self.file_name = file_name
-        self.member_id = member_id
-        self.active = active
-
-
-# user schema
-class StudentSchema(ma.Schema):
-    class Meta:
-        fields = ('id', 'andrewid', 'fullname', 'classid')
-
-# model schema
-
-
-class ModelSchema(ma.Schema):
-    version = fields.Int()
-    url = fields.Method("add_host_to_url")
-    students = ma.Nested(StudentSchema, many=True)
-    # this is necessary because we need to append host to current url
-
-    def add_host_to_url(self, obj):
-        return request.host_url + obj.url
+#
+# # user schema
+# class StudentSchema(ma.Schema):
+#     class Meta:
+#         fields = ('id', 'andrewid', 'fullname', 'classid')
+#
+# # model schema
+#
+#
+# class ModelSchema(ma.Schema):
+#     version = fields.Int()
+#     url = fields.Method("add_host_to_url")
+#     students = ma.Nested(StudentSchema, many=True)
+#     # this is necessary because we need to append host to current url
+#
+#     def add_host_to_url(self, obj):
+#         return request.host_url + obj.url
 
 
 # initialize everything
@@ -131,144 +88,155 @@ def not_found(error):
 @app.errorhandler(400)
 def not_found(error):
     return make_response(jsonify({'error': 'Bad request'}), 400)
-
-
-class StudentForm(FlaskForm):
-    andrewid = StringField()
-    name = StringField()
-    video = FileField()
-    classid = StringField()
+#
+#
+# class StudentForm(FlaskForm):
+#     andrewid = StringField()
+#     name = StringField()
+#     video = FileField()
+#     classid = StringField()
 
 # index page
 
 
 @app.route("/",methods=['GET'])
 def index():
-    return render_template('index.html')
+    print("asdf")
+    test = Member('Staff','George Yao', True, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),'Jason Yao',
+    '1063 Morewood Avenue','','Pittsburgh','PA','15213','gyao@andrew.cmu.edu',[])
+    db.session.add(test)
+    db.session.commit()
+    # return Member.__repr__(test)
+    # return render_template('index.html')
 
 
 
 # register user
 
 
-@app.route("/students/register", methods=['GET', 'POST'])
+@app.route("/students/register", methods=['GET'])
 def register_user():
-    # Ensure POST request, with at least andrewid,
-    if request.method == 'POST':
-        if not request.form or 'andrewid' not in request.form or 'name' not in request.form or 'classid' not in request.form:
-            return make_response(jsonify(
-                {'status': 'failed',
-                 'error': 'bad request',
-                 'message:': 'Andrew ID is required'}), 400)
-        else:
-            andrewid = request.form['andrewid']
-            fullname = request.form['name']
-            classid = request.form['classid']
-            logging.debug("{}: Beginning registration".format(andrewid))
-
-            newStudent = Student(andrewid, fullname, classid)
-            db.session.add(newStudent)
-            db.session.commit()
-            logging.debug("{}: Committed to db".format(andrewid))
-
-            if 'video' in request.files:
-                f = request.files['video']
-                filename = secure_filename(f.filename)
-                f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                save_images_to_folder(os.path.join(
-                    app.config['UPLOAD_FOLDER'], filename), newStudent)
-                logging.debug("{}: video and photos uploaded".format(andrewid))
-
-            if (andrewid != "negative"):
-                r = requests.post('https://attendify.herokuapp.com:443/students',
-                                  data={'first_name': fullname.split(' ')[0],
-                                        'last_name': fullname.split(' ')[1],
-                                        'andrew_id': andrewid,
-                                        'active': True})
-                logging.debug("{}: POST student request".format(andrewid))
-                if (r.status_code == 201):
-                    requests.post('https://attendify.herokuapp.com:443/enrollments',
-                                  data={'course_id': classid,
-                                        'andrew_id': andrewid,
-                                        'active': True})
-                    logging.debug("{}: POST enrollment request".format(andrewid))
-            return render_template('form_registration_completion.html')
-    return render_template('form_registration.html',
-                           form=StudentForm(request.form))
+    print("asdf")
+    # # Ensure POST request, with at least andrewid,
+    # if request.method == 'POST':
+    #     if not request.form or 'andrewid' not in request.form or 'name' not in request.form or 'classid' not in request.form:
+    #         return make_response(jsonify(
+    #             {'status': 'failed',
+    #              'error': 'bad request',
+    #              'message:': 'Andrew ID is required'}), 400)
+    #     else:
+    #         andrewid = request.form['andrewid']
+    #         fullname = request.form['name']
+    #         classid = request.form['classid']
+    #         logging.debug("{}: Beginning registration".format(andrewid))
+    #
+    #         newStudent = Student(andrewid, fullname, classid)
+    #         db.session.add(newStudent)
+    #         db.session.commit()
+    #         logging.debug("{}: Committed to db".format(andrewid))
+    #
+    #         if 'video' in request.files:
+    #             f = request.files['video']
+    #             filename = secure_filename(f.filename)
+    #             f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    #             save_images_to_folder(os.path.join(
+    #                 app.config['UPLOAD_FOLDER'], filename), newStudent)
+    #             logging.debug("{}: video and photos uploaded".format(andrewid))
+    #
+    #         if (andrewid != "negative"):
+    #             r = requests.post('https://attendify.herokuapp.com:443/students',
+    #                               data={'first_name': fullname.split(' ')[0],
+    #                                     'last_name': fullname.split(' ')[1],
+    #                                     'andrew_id': andrewid,
+    #                                     'active': True})
+    #             logging.debug("{}: POST student request".format(andrewid))
+    #             if (r.status_code == 201):
+    #                 requests.post('https://attendify.herokuapp.com:443/enrollments',
+    #                               data={'course_id': classid,
+    #                                     'andrew_id': andrewid,
+    #                                     'active': True})
+    #                 logging.debug("{}: POST enrollment request".format(andrewid))
+    #         return render_template('form_registration_completion.html')
+    # return render_template('form_registration.html',
+    #                        form=StudentForm(request.form))
 
 
 # function that converts video into images, and
 # saves images under /images/{andrewid}
 def save_images_to_folder(filePath, student):
-    logging.debug("{}: Begin saving images".format(student.andrewid))
-    if not os.path.exists('./images/{}'.format(student.andrewid)):
-        os.makedirs('./images/{}'.format(student.andrewid))
-    prefix = str(uuid.uuid4())
-
-    # Uploading the video to s3 bucket (for future use)
-    s3.upload_file(filePath,
-                   bucket_name, 'videos/{}/{}'.format(student.andrewid, filePath.split("/")[-1]))
-    # /app/images/
-    ff = FFmpeg(inputs={filePath: None},
-                outputs={"./images/{}/image_{}_%d.jpg".format(student.andrewid, prefix):
-                         ['-y', '-vf', 'fps=5']})
-    logging.debug(ff.cmd)
-    ff.run()
-
-    # remove .DS_Store; gets autogenerated
-    # frequently
-    dsStore = os.path.isfile('./images/.DS_Store')
-    if dsStore:
-        os.remove('./images/.DS_Store')
-
-    time.sleep(5)  # No wait function for ffmpy
-    os.remove(filePath)  # Remove the video file locally, as it is not needed
-
-    # upload first photo to S3
-    logging.debug(
-        "{}: Attempting to upload to s3 bucket".format(student.andrewid))
-    # for filename in os.listdir('./images/{}/'.format(student.andrewid)):
-    s3.upload_file('./images/{}/image_{}_1.jpg'.format(student.andrewid, prefix),
-                   bucket_name, 'images/{}/image_{}_1.jpg'.format(student.andrewid, prefix))
-
-    logging.debug("{}: POST request for photos".format(student.andrewid))
-    r = requests.get(
-        'https://attendify.herokuapp.com:443/photos?for_andrew_id={}'.format(student.andrewid))
-    if r.text == '[]':
-        r = requests.post("https://attendify.herokuapp.com:443/photos",
-                          data={'andrew_id': student.andrewid,
-                                'photo_url': 'https://s3.amazonaws.com/{}/images/{}/image_{}_1.jpg'.format(bucket_name, student.andrewid, prefix)})
-
-    # get the last trained model
-    model = Model.query.order_by(Model.version.desc()).first()
-    if model is not None:
-        # increment the version
-        queue.put(model.version + 1)
-    else:
-        # create first version
-        queue.put(1)
+    print("asdf")
+    # logging.debug("{}: Begin saving images".format(student.andrewid))
+    # if not os.path.exists('./images/{}'.format(student.andrewid)):
+    #     os.makedirs('./images/{}'.format(student.andrewid))
+    # prefix = str(uuid.uuid4())
+    #
+    # # Uploading the video to s3 bucket (for future use)
+    # s3.upload_file(filePath,
+    #                bucket_name, 'videos/{}/{}'.format(student.andrewid, filePath.split("/")[-1]))
+    # # /app/images/
+    # ff = FFmpeg(inputs={filePath: None},
+    #             outputs={"./images/{}/image_{}_%d.jpg".format(student.andrewid, prefix):
+    #                      ['-y', '-vf', 'fps=5']})
+    # logging.debug(ff.cmd)
+    # ff.run()
+    #
+    # # remove .DS_Store; gets autogenerated
+    # # frequently
+    # dsStore = os.path.isfile('./images/.DS_Store')
+    # if dsStore:
+    #     os.remove('./images/.DS_Store')
+    #
+    # time.sleep(5)  # No wait function for ffmpy
+    # os.remove(filePath)  # Remove the video file locally, as it is not needed
+    #
+    # # upload first photo to S3
+    # logging.debug(
+    #     "{}: Attempting to upload to s3 bucket".format(student.andrewid))
+    # # for filename in os.listdir('./images/{}/'.format(student.andrewid)):
+    # s3.upload_file('./images/{}/image_{}_1.jpg'.format(student.andrewid, prefix),
+    #                bucket_name, 'images/{}/image_{}_1.jpg'.format(student.andrewid, prefix))
+    #
+    # logging.debug("{}: POST request for photos".format(student.andrewid))
+    # r = requests.get(
+    #     'https://attendify.herokuapp.com:443/photos?for_andrew_id={}'.format(student.andrewid))
+    # if r.text == '[]':
+    #     r = requests.post("https://attendify.herokuapp.com:443/photos",
+    #                       data={'andrew_id': student.andrewid,
+    #                             'photo_url': 'https://s3.amazonaws.com/{}/images/{}/image_{}_1.jpg'.format(bucket_name, student.andrewid, prefix)})
+    #
+    # # get the last trained model
+    # model = Model.query.order_by(Model.version.desc()).first()
+    # if model is not None:
+    #     # increment the version
+    #     queue.put(model.version + 1)
+    # else:
+    #     # create first version
+    #     queue.put(1)
 
 # endpoint to download mlModel
 @app.route('/models/download')
 def download():
-    model = Model.query.order_by(Model.version.desc()).first()
-    filename = "Faces_v{}.mlmodel".format(model.version)
-    return send_from_directory('models', filename, as_attachment=True)
+    print("asdf")
+    # model = Model.query.order_by(Model.version.desc()).first()
+    # filename = "Faces_v{}.mlmodel".format(model.version)
+    # return send_from_directory('models', filename, as_attachment=True)
 
 
 # endpoint to check out latest mlMode
 @app.route('/models/latest')
 def latest():
-    global latestModelTrained
-    model = Model.query.order_by(Model.version.desc()).first()
-    filename = "No model has been trained yet"
-    if model is not None:
-        filename = "Faces_v{}.mlmodel".format(model.version)
-    return render_template('lastModel.html',
-                    filename = filename,
-                    timestamp = latestModelTrained)
+    print('asdf')
+    # global latestModelTrained
+    # model = Model.query.order_by(Model.version.desc()).first()
+    # filename = "No model has been trained yet"
+    # if model is not None:
+    #     filename = "Faces_v{}.mlmodel".format(model.version)
+    # return render_template('lastModel.html',
+    #                 filename = filename,
+    #                 timestamp = latestModelTrained)
 
 def create_pass():
+    print('asdf')
     # global latestModelTrained
     # while True:
     #     # get the next version
