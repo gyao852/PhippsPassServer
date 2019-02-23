@@ -19,18 +19,24 @@ import requests
 import uuid
 import time
 import datetime
-# import psycopg2
-
-# bucket_name = os.environ["IOSPROJECTBUCKET"]
-# s3 = boto3.client('s3')
-# latestModelTrained = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-
+import subprocess
+from flask_mail import Mail
+from flask_mail import Message
 
 app = Flask(__name__)
 app.config.from_object(os.environ['APP_SETTINGS'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+app.config['MAIL_SERVER']='smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'georgey852@gmail.com'
+app.config['MAIL_PASSWORD'] = 'LUfhspvz12!'
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
+mail = Mail(app)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
+
 # configure logging
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(levelname)s] - %(threadName)-10s : %(message)s')
@@ -43,41 +49,6 @@ if __name__ == "__main__":
     # Only for debugging while developing
     app.run(host='0.0.0.0', debug=True)
 
-
-
-
-# model table
-
-
-
-
-#
-# # user schema
-# class StudentSchema(ma.Schema):
-#     class Meta:
-#         fields = ('id', 'andrewid', 'fullname', 'classid')
-#
-# # model schema
-#
-#
-# class ModelSchema(ma.Schema):
-#     version = fields.Int()
-#     url = fields.Method("add_host_to_url")
-#     students = ma.Nested(StudentSchema, many=True)
-#     # this is necessary because we need to append host to current url
-#
-#     def add_host_to_url(self, obj):
-#         return request.host_url + obj.url
-
-
-# initialize everything
-# student_schema = StudentSchema()
-# students_schema = StudentSchema(many=True)
-# model_schema = ModelSchema()
-# models_schema = ModelSchema(many=True)
-# db.create_all()
-
-
 # error handlers
 @app.errorhandler(404)
 def not_found(error):
@@ -88,201 +59,124 @@ def not_found(error):
 @app.errorhandler(400)
 def not_found(error):
     return make_response(jsonify({'error': 'Bad request'}), 400)
-#
-#
-# class StudentForm(FlaskForm):
-#     andrewid = StringField()
-#     name = StringField()
-#     video = FileField()
-#     classid = StringField()
 
-# index page
-
-
+# Index page shows initial dashboard
 @app.route("/",methods=['GET'])
 def index():
-    print("asdf")
-    test = Member('Staff','George Yao', True, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),'Jason Yao',
-    '1063 Morewood Avenue','','Pittsburgh','PA','15213','gyao@andrew.cmu.edu',[])
-    db.session.add(test)
-    db.session.commit()
-    # return Member.__repr__(test)
-    # return render_template('index.html')
+    logging.debug("Index page requested")
+    return render_template('index.html')
+        # sendMail("gyao@andrew.cmu.edu","some/path.pkpass")
 
+
+
+# Member index page shows all members, and
+# ability to send emails to users
+@app.route("/members",methods=['GET'])
+def members():
+    logging.debug("Member page requested")
+    data = Member.query.order_by(Member.full_name.desc()).all()
+    return render_template('tables.html', members = data)
 
 
 # register user
+@app.route('/send_mail',methods=['POST'])
+def sendMail():
+    print(request.values.get('field', None))
+    # return "abc"
+    recipient_email = request.values.get('email', None)
+    name = request.values.get('name', None)
+    logging.debug("send_mail called")
+    msg = Message("Digital memberhsip card | Phipps Conservatory and Botanical Gardens",
+                  sender="georgeY852@gmail.com",
+                  recipients=["mcassidy@phipps.conservatory.org"]) # smoussaw@andrew.cmu.edu
+    # msg.body = "some body"
+    msg.html = '''
+        Dear {},<br><br>
+        Phipps Conservatory is always seeking to continue it's
+        mission of reducing it's carbon emissions. One of our new initiatives
+        is having our membership cards available by phone. Attached to this
+        email is your membership card that can be saved and loaded onto your smartphone device.<br><br>
+        For Apple devices:
+        <ul>
+            <li> If you're on your phone, simply double tap on the attached .pkpass file, and it should automatically add
+            to your Apple Wallet.<br>
+            <li> If you're on your Macbook, you can also double click on the attached file for it to be added to all your Apple devices.
+            <br>
+            NOTE: This will only work if you've connected your iPhone and Macbook with the same iCloud. If not, you can download your .pkpass
+            file, and 'Airdrop' it to your Apple device. Your phone will then automatically add it to Apple Wallet.
+        </ul>
+        For Android phones:<br>
+        <ul>
+            <li> Go to the Google Play Store, and install the application 'Passes'<br>
+            <li> Double tap on the attached .pkpass file, and then choose to add to 'Passes'<br>
+        </ul>
+        <br>
+        We hope to see you soon!<br><br>
+        Mike Cassidy<br>
+        Membership Administrator<br>
+        412/622-6915, ext. 6500<br>
+        mcassidy@phipps.conservatory.org<br>
+        <img src='https://i.ibb.co/q5QrGXf/phipps-email-logo.png'><br>
+        <font color="#78a22f">Phipps Conservatory and Botanical Gardens</font><br>
+        <font color="#78a22f">One Schenley Park</font><br>
+        <font color="#78a22f">Pittsburgh, Pa. 15213</font><br>
+        <font color="#78a22f"><a href="phipps.conservatory.org"></font><br>
+        <font color="#78a22f"><a href="facebook.com/phippsconservatory"></font><br>
+        <font color="#78a22f"><a href="twitter.com/phippsnews"></font>
+        '''.format(name)
+    fileName = "{}.pkpass".format(name.replace(" ", ""))
+    with app.open_resource("Pass Files/{}".format(fileName)) as fp:
+        msg.attach("{}".format(fileName), "Pass Files/{}".format(fileName), fp.read())
+    mail.send(msg)
+
+    #<img src='http://127.0.0.1:5000/static/img/phipps_email_logo.png'><br>
+    #
+    # member = Member.query.filter_by(full_name=name).first()
+    # member_pass = Pass.query.filter_by(member_id=member.id).first()
+    # member_pass.last_sent = datetime.datetime.now()
+    # db.session.commit()
+    logging.debug("mail sent")
+    return recipient_email
 
 
-@app.route("/students/register", methods=['GET'])
-def register_user():
-    print("asdf")
-    # # Ensure POST request, with at least andrewid,
-    # if request.method == 'POST':
-    #     if not request.form or 'andrewid' not in request.form or 'name' not in request.form or 'classid' not in request.form:
-    #         return make_response(jsonify(
-    #             {'status': 'failed',
-    #              'error': 'bad request',
-    #              'message:': 'Andrew ID is required'}), 400)
-    #     else:
-    #         andrewid = request.form['andrewid']
-    #         fullname = request.form['name']
-    #         classid = request.form['classid']
-    #         logging.debug("{}: Beginning registration".format(andrewid))
-    #
-    #         newStudent = Student(andrewid, fullname, classid)
-    #         db.session.add(newStudent)
-    #         db.session.commit()
-    #         logging.debug("{}: Committed to db".format(andrewid))
-    #
-    #         if 'video' in request.files:
-    #             f = request.files['video']
-    #             filename = secure_filename(f.filename)
-    #             f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    #             save_images_to_folder(os.path.join(
-    #                 app.config['UPLOAD_FOLDER'], filename), newStudent)
-    #             logging.debug("{}: video and photos uploaded".format(andrewid))
-    #
-    #         if (andrewid != "negative"):
-    #             r = requests.post('https://attendify.herokuapp.com:443/students',
-    #                               data={'first_name': fullname.split(' ')[0],
-    #                                     'last_name': fullname.split(' ')[1],
-    #                                     'andrew_id': andrewid,
-    #                                     'active': True})
-    #             logging.debug("{}: POST student request".format(andrewid))
-    #             if (r.status_code == 201):
-    #                 requests.post('https://attendify.herokuapp.com:443/enrollments',
-    #                               data={'course_id': classid,
-    #                                     'andrew_id': andrewid,
-    #                                     'active': True})
-    #                 logging.debug("{}: POST enrollment request".format(andrewid))
-    #         return render_template('form_registration_completion.html')
-    # return render_template('form_registration.html',
-    #                        form=StudentForm(request.form))
+# Registering a Device to Receive Push Notifications for a Pass
+# webServiceURL/version/devices/deviceLibraryIdentifier/registrations/passTypeIdentifier/serialNumber
+@app.route("/v1/devices/<deviceLibraryIdentifier>/registrations/pass.org.conservatory.phipps.membership/<serialNumber>", methods=['POST'])
+def register_device():
+    return
+
+# Getting the Serial Numbers for Passes Associated with a Device
+# webServiceURL/version/devices/deviceLibraryIdentifier/registrations/passTypeIdentifier?passesUpdatedSince=tag
+@app.route("/v1/devices/<deviceLibraryIdentifier>/registrations/pass.org.conservatory.phipps.membership?passesUpdatedSince=<tag>", methods=['GET'])
+def get_serial():
+    return
+
+# Getting the Latest Version of a Pass
+# webServiceURL/version/passes/passTypeIdentifier/serialNumber
+@app.route("/v1/passes/pass.org.conservatory.phipps.membership/<serialNumber>", methods=['GET'])
+def get_latest_version():
+    return
 
 
-# function that converts video into images, and
-# saves images under /images/{andrewid}
-def save_images_to_folder(filePath, student):
-    print("asdf")
-    # logging.debug("{}: Begin saving images".format(student.andrewid))
-    # if not os.path.exists('./images/{}'.format(student.andrewid)):
-    #     os.makedirs('./images/{}'.format(student.andrewid))
-    # prefix = str(uuid.uuid4())
-    #
-    # # Uploading the video to s3 bucket (for future use)
-    # s3.upload_file(filePath,
-    #                bucket_name, 'videos/{}/{}'.format(student.andrewid, filePath.split("/")[-1]))
-    # # /app/images/
-    # ff = FFmpeg(inputs={filePath: None},
-    #             outputs={"./images/{}/image_{}_%d.jpg".format(student.andrewid, prefix):
-    #                      ['-y', '-vf', 'fps=5']})
-    # logging.debug(ff.cmd)
-    # ff.run()
-    #
-    # # remove .DS_Store; gets autogenerated
-    # # frequently
-    # dsStore = os.path.isfile('./images/.DS_Store')
-    # if dsStore:
-    #     os.remove('./images/.DS_Store')
-    #
-    # time.sleep(5)  # No wait function for ffmpy
-    # os.remove(filePath)  # Remove the video file locally, as it is not needed
-    #
-    # # upload first photo to S3
-    # logging.debug(
-    #     "{}: Attempting to upload to s3 bucket".format(student.andrewid))
-    # # for filename in os.listdir('./images/{}/'.format(student.andrewid)):
-    # s3.upload_file('./images/{}/image_{}_1.jpg'.format(student.andrewid, prefix),
-    #                bucket_name, 'images/{}/image_{}_1.jpg'.format(student.andrewid, prefix))
-    #
-    # logging.debug("{}: POST request for photos".format(student.andrewid))
-    # r = requests.get(
-    #     'https://attendify.herokuapp.com:443/photos?for_andrew_id={}'.format(student.andrewid))
-    # if r.text == '[]':
-    #     r = requests.post("https://attendify.herokuapp.com:443/photos",
-    #                       data={'andrew_id': student.andrewid,
-    #                             'photo_url': 'https://s3.amazonaws.com/{}/images/{}/image_{}_1.jpg'.format(bucket_name, student.andrewid, prefix)})
-    #
-    # # get the last trained model
-    # model = Model.query.order_by(Model.version.desc()).first()
-    # if model is not None:
-    #     # increment the version
-    #     queue.put(model.version + 1)
-    # else:
-    #     # create first version
-    #     queue.put(1)
+# Unregistering a Device
+# deviceLibraryIdentifier/registrations/passTypeIdentifier/serialNumber
+@app.route("/v1/devices/<deviceLibraryIdentifier>/registrations/pass.org.conservatory.phipps.membership/<serialNumber>", methods=['DELETE'])
+def unregister_device():
+    return
 
-# endpoint to download mlModel
-@app.route('/models/download')
-def download():
-    print("asdf")
-    # model = Model.query.order_by(Model.version.desc()).first()
-    # filename = "Faces_v{}.mlmodel".format(model.version)
-    # return send_from_directory('models', filename, as_attachment=True)
+# Logging errors
+# webServiceURL/version/log
+@app.route("/v1/log", methods=['POST'])
+def loggin_error():
+    return
 
-
-# endpoint to check out latest mlMode
-@app.route('/models/latest')
-def latest():
-    print('asdf')
-    # global latestModelTrained
-    # model = Model.query.order_by(Model.version.desc()).first()
-    # filename = "No model has been trained yet"
-    # if model is not None:
-    #     filename = "Faces_v{}.mlmodel".format(model.version)
-    # return render_template('lastModel.html',
-    #                 filename = filename,
-    #                 timestamp = latestModelTrained)
-
+# Logic for creating pass
 def create_pass():
-    print('asdf')
-    # global latestModelTrained
-    # while True:
-    #     # get the next version
-    #     version = queue.get()
-    #     logging.debug('loading images')
-    #     data = tc.image_analysis.load_images('images', with_path=True)
-    #
-    #     # From the path-name, create a label column
-    #     data['label'] = data['path'].apply(lambda path: path.split('/')[-2])
-    #
-    #     # use the model version to construct a filename
-    #     filename = 'Faces_v' + str(version)
-    #     mlmodel_filename = filename + '.mlmodel'
-    #     models_folder = 'models/'
-    #
-    #     # Save the data for future use
-    #     data.save(models_folder + filename + '.sframe')
-    #
-    #     result_data = tc.SFrame(models_folder + filename + '.sframe')
-    #     train_data = result_data.random_split(0.8)
-    #
-    #     # the next line starts the training process
-    #     model = tc.image_classifier.create(
-    #         train_data[0], target='label', model='resnet-50', max_iterations=40,
-    #         verbose=True, batch_size=64)
-    #
-    #     db.session.commit()
-    #     logging.debug('saving model')
-    #     model.save(models_folder + filename + '.model')
-    #     logging.debug('saving coremlmodel')
-    #     model.export_coreml(models_folder + mlmodel_filename)
-    #     latestModelTrained = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    #
-    #     # save model data in database
-    #     modelData = Model()
-    #     modelData.url = models_folder + mlmodel_filename
-    #     classes = model.classes
-    #     for andrewid in classes:
-    #         student = Student.query.get(andrewid)
-    #         if student is not None:
-    #             modelData.students.append(student)
-    #     db.session.add(modelData)
-    #     db.session.commit()
-    #     logging.debug('done creating model')
-    #     # mark this task as done
-    #     queue.task_done()
+    # print('pass')
+    passFile = "george.pkpass"
+    out = subprocess.Popen(['./signpass', '-p', '{}'.format(passFile)],
+               stdout=subprocess.PIPE,
+               stderr=subprocess.STDOUT)
 
 
 # configure queue for training models
