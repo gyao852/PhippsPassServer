@@ -296,51 +296,45 @@
         <div class="container-fluid">
 
           <!-- Page Heading -->
-          <h1 class="h3 mb-2 text-gray-800">Members & Passes</h1>
-          <p class="mb-4">Data from the Member data is taken from the backend PostGres Database. I plan in the future allow
-          each record to be clickable, leading to a member show page, showing all passes and their registered devices.</p>
+          <h1 class="h3 mb-2 text-gray-800">Pass Data</h1>
+          <p class="mb-4"> Overview page of all passes held in the server. A 'Pass' holds the meta data of the
+              digital membership cards. The 'Serial Number' is a unique number value associated with each
+              membership card. Moreover, the 'Authentication Token' is a value that is repeatedly checked against
+              the local database for valdiations; it is also unique for each pass created. The 'File Name' is simply
+              a concatenation of the first and last name for that member. 'Last Sent' refers to when an email was last
+              sent to a member, or when it was last updated (this is because, after the pass is installed on a device,
+              each time Apple Wallet or Google Play App 'Pass' is opened, it will check against our server for the latest
+              update automatically. Note that for every record in membership, there can be zero to multiple
+              passes associated with it. If a record in the Membership table is currently NOT a member, then he/she
+              will NOT have a pass created.
+          </p>
 
           <!-- DataTales Example -->
           <div class="card shadow mb-4">
             <div class="card-header py-3">
-              <h6 class="m-0 font-weight-bold text-primary">Member Table</h6>
+              <h6 class="m-0 font-weight-bold text-primary">Pass Table</h6>
             </div>
+
             <div class="card-body">
               <div class="table-responsive">
                 <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
-                      <th>Full Name</th>
-                      <th>Member Level</th>
-                      <th>Status</th>
-                      <th>Address</th>
-                      <th>Expiration Date</th>
-                      <th>Last Sent Pass</th>
-                      <th>Send pass</th>
+                      <th>Serial Number</th>
+                      <th>Authentication Token</th>
+                      <th>File Name</th>
+                      <th>Last Sent</th>
+                      <th>Last Updated</th>
                     </tr>
                   </thead>
-                  <tfoot>
-                    <tr>
-                      <th>Full Name</th>
-                      <th>Member Level</th>
-                      <th>Status</th>
-                      <th>Address</th>
-                      <th>Expiration Date</th>
-                      <th>Last Sent Pass</th>
-                      <th>Send pass</th>
-                    </tr>
-                  </tfoot>
                   <tbody>
-                    {% for record in members %}
-                      {{record.full_name}}
+                    {% for pass in data %}
                       <tr>
-                      <td>{{record.full_name}}</td>
-                      <td>{{record.member_level}}</td>
-                      <td>{{record.status}}</td>
-                      <td>{{record.address_line_1}}, {{record.address_line_2}}, {{record.city}} {{record.state}} {{record.zip}}</td>
-                      <td>{{record.expiration_date}}</td>
-                      <td>None</td>
-                      <td><a class='mailButton' data-email="{{record.email}}" data-full_name="{{record.full_name}}"><button class='btn btn-default'>Send Pass</button></a></td>
+                      <td>{{pass.id}}</td>
+                      <td>{{pass.authenticationToken}}</td>
+                      <td>{{pass.file_name}}</td>
+                      <td>{{pass.last_sent}}</td>
+                      <td>{{pass.last_updated}}</td>
                       </tr>
                     {% endfor %}
                   </tbody>

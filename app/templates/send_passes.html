@@ -296,51 +296,46 @@
         <div class="container-fluid">
 
           <!-- Page Heading -->
-          <h1 class="h3 mb-2 text-gray-800">Members & Passes</h1>
-          <p class="mb-4">Data from the Member data is taken from the backend PostGres Database. I plan in the future allow
-          each record to be clickable, leading to a member show page, showing all passes and their registered devices.</p>
+          <h1 class="h3 mb-2 text-gray-800">Send passes</h1>
+          <p class="mb-4">This page allows you to quickly and simply send passes to selected users; both individuall
+          and in groups (via checkbox on the left). Note that 'Last card update' shows when the membership card was
+          last changed. Last card registration shows the date when the user has installed their membership card
+          onto their mobile device. Any changes to the passes table in the backend database should automatically update
+          the membership passes. 'Last email sent' indicates when was the last time an e-mail was last sent to a member.
+          </p>
 
           <!-- DataTales Example -->
           <div class="card shadow mb-4">
             <div class="card-header py-3">
-              <h6 class="m-0 font-weight-bold text-primary">Member Table</h6>
+              <h6 class="m-0 font-weight-bold text-primary">Send Passes</h6>
             </div>
+
             <div class="card-body">
               <div class="table-responsive">
                 <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                   <thead>
                     <tr>
+                      <th>Membership ID</th>
                       <th>Full Name</th>
                       <th>Member Level</th>
-                      <th>Status</th>
-                      <th>Address</th>
                       <th>Expiration Date</th>
-                      <th>Last Sent Pass</th>
+                      <th>Last card update</th>
+                      <th>Last card registration</th>
+                      <th>Last email sent</th>
                       <th>Send pass</th>
                     </tr>
                   </thead>
-                  <tfoot>
-                    <tr>
-                      <th>Full Name</th>
-                      <th>Member Level</th>
-                      <th>Status</th>
-                      <th>Address</th>
-                      <th>Expiration Date</th>
-                      <th>Last Sent Pass</th>
-                      <th>Send pass</th>
-                    </tr>
-                  </tfoot>
                   <tbody>
-                    {% for record in members %}
-                      {{record.full_name}}
+                    {% for member,pass in data %}
                       <tr>
-                      <td>{{record.full_name}}</td>
-                      <td>{{record.member_level}}</td>
-                      <td>{{record.status}}</td>
-                      <td>{{record.address_line_1}}, {{record.address_line_2}}, {{record.city}} {{record.state}} {{record.zip}}</td>
-                      <td>{{record.expiration_date}}</td>
-                      <td>None</td>
-                      <td><a class='mailButton' data-email="{{record.email}}" data-full_name="{{record.full_name}}"><button class='btn btn-default'>Send Pass</button></a></td>
+                      <td>{{member.id}}</td>
+                      <td>{{member.full_name}}</td>
+                      <td>{{member.member_level}}</td>
+                      <td>{{member.expiration_date}}</td>
+                      <td>{{pass.last_updated}}</td>
+                      <td>Not Implemented</td>
+                      <td>{{pass.last_sent}}</td>
+                      <td><a class='mailButton' data-email="{{member.email}}" data-full_name="{{member.full_name}}"><button class='btn btn-default'>Send Pass</button></a></td>
                       </tr>
                     {% endfor %}
                   </tbody>

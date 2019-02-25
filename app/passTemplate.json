@@ -1,12 +1,12 @@
 {
   "formatVersion" : 1,
   "passTypeIdentifier" : "pass.org.conservatory.phipps.membership",
-  "serialNumber" : "000002",
+  "serialNumber" : "000001",
   "teamIdentifier" : "M6LYJ8LVCL",
   "webServiceURL" : "https://google.com/passes/",
   "authenticationToken" : "vxwxd7J8AlNNFPS8k0a0FfUFtq0ewzFdc",
   "barcode" : {
-    "message" : "PHIPPS8-10060865",
+    "message" : "8-10060865",
     "format" : "PKBarcodeFormatPDF417",
     "messageEncoding" : "iso-8859-1"
   },
@@ -17,7 +17,7 @@
     }
   ],
   "organizationName" : "Phipps Conservatory & Botanical Gardens",
-  "description" : "George's Phipps Membership Pass",
+  "description" : "Phipps Membership Pass",
   "logoText" : "Phipps Conservatory",
   "foregroundColor" : "rgb(255, 255, 255)",
   "backgroundColor" : "rgb(121, 161, 56)",
@@ -37,14 +37,9 @@
         "value" : "8-10060865"
     },
     {
-      "key" : "phone-number",
-      "label" : "Phone Number",
-      "value" : "(412)-218-4897",
-    },
-    {
       "key" : "expires",
       "label" : "Expires",
-      "value" : "2019-12-31T10:00-05:00",
+      "value" : "2019-04-24T10:00-05:00",
       "dateStyle" : "PKDateStyleShort"
     }
     ],
@@ -52,15 +47,15 @@
       {
         "key" : "address",
         "label" : "Address Line 1",
-        "value" : "6327 Waldron Street",
-      },
-      {
-        "key" : "address",
-        "label" : "Address Line 2",
-        "value" : "Pittsburgh PA 15217",
+        "value" : "6327 Waldron Street, Pittsburgh PA 15217"
       }
     ],
     "backFields" : [
+      {
+        "key" : "associates",
+        "label" : "Associate Members",
+        "value" : "Jason Yao"
+      },
       {
         "key" : "operating-hours",
         "label" : "Hours",
