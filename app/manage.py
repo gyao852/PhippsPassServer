@@ -13,7 +13,6 @@ migrate = Migrate(app, db)
 manager = Manager(app)
 manager.add_command('db', MigrateCommand)
 
-# datetime.strptime('05/14/2019', '%m/%d/%Y'),
 @manager.command
 def seed():
     "Adding seed data to the database"
@@ -69,6 +68,7 @@ def seed():
         with open('passTemplate.json') as f:
             data = json.load(f)
             data['serialNumber'] = str(aPass.id)
+            data['webServiceURL'] = 'phipps-conservatory-passes.us-east-1.elasticbeanstalk.com'
             data['authenticationToken'] = aPass.authenticationToken
             data['barcode']['message'] = member.id
             data['generic']['primaryFields'][0]['label'] = member.full_name
