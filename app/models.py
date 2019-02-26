@@ -1,9 +1,9 @@
 from app import db
 
 
-member_pass_association = db.Table('member_pass_association', db.Model.metadata,
+member_card_association = db.Table('member_card_association', db.Model.metadata,
                                    db.Column('member_id', db.String(100), db.ForeignKey('member.id')),
-                                   db.Column('pass_id', db.Integer, db.ForeignKey('pass.id')))
+                                   db.Column('card_id', db.Integer, db.ForeignKey('card.id')))
 
 
 class Member(db.Model):
@@ -20,16 +20,16 @@ class Member(db.Model):
     state = db.Column(db.String(100))
     zip = db.Column(db.String(100))
     email = db.Column(db.String(100), nullable=False)
-    passes = db.relationship('Pass', secondary=member_pass_association)
+    cards = db.relationship('Card', secondary=member_card_association)
 
 # don't know why, but association table created when added primary_key=True? even though no need for above
-registration = db.Table('pass_device_association', db.Model.metadata,
-                                   db.Column('pass_id', db.Integer, db.ForeignKey('pass.id'), primary_key=True),
+registration = db.Table('card_device_association', db.Model.metadata,
+                                   db.Column('crad_id', db.Integer, db.ForeignKey('card.id'), primary_key=True),
                                    db.Column('device_id', db.Integer, db.ForeignKey('device.id'), primary_key=True))
 
 
-class Pass(db.Model):
-    __tablename__ = 'pass'
+class Card(db.Model):
+    __tablename__ = 'card'
     id = db.Column(db.Integer, primary_key=True)  # serial number
     authenticationToken = db.Column(db.String(100))
     file_name = db.Column(db.String(300))

@@ -5,9 +5,8 @@ class Config(object):
     DEBUG = False
     Testing = False
     CSRF_ENABLED = True
-    SECRET_KEY = os.environ['SECRET_KEY']
-    SQLALCHEMY_DATABASE_URI = 'postgresql://'+os.environ['RDS_USERNAME']+":"+os.environ['RDS_PASSWORD']\
-                              +"@"+os.environ['RDS_HOSTNAME']+":"+os.environ['RDS_PORT']+"/"+os.environ['RDS_DB_NAME']
+    SECRET_KEY = 'CnySh+ACsQElyzHh'
+    SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
 
 class ProductionConfig(Config):
     DEBUG = False

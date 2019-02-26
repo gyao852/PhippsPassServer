@@ -1,4 +1,6 @@
 *.zip
+app/certificates/*
+app/migrations/*
 #### joe made this: http://goel.io/joe
 
 #####=== Python ===#####

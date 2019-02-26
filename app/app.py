@@ -17,8 +17,8 @@ app.config.from_object(os.environ['APP_SETTINGS'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USERNAME'] = 'georgey852@gmail.com'
-app.config['MAIL_PASSWORD'] = 'LUfhspvz12!'
+app.config['MAIL_USERNAME'] = os.environ['SERVER_EMAIL']
+app.config['MAIL_PASSWORD'] = os.environ['SERVER_EMAIL_PASSWORD']
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 mail = Mail(app)
@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.DEBUG,
 # configure pass folder destination folder
 app.config['PASS_FOLDER'] = './Pass Files'
 
-from models import Member, Pass, Device, member_pass_association, registration
+from models import Member, Card, Device, member_card_association, registration
 
 if __name__ == "__main__":
     # Only for debugging while developing
@@ -65,7 +65,7 @@ def not_authorized(error):
 def index():
     logging.debug("Index page requested")
     members = Member.query.all()
-    passes = Pass.query.all()
+    passes = Card.query.all()
     devices = Device.query.all()
     return render_template('index.html', memberCnt=len(members), passCnt=len(passes), deviceCnt=len(devices), pendingCnt=0)
 
@@ -75,7 +75,7 @@ def index():
 @app.route("/send_pass", methods=['GET'])
 def send_passes():
     logging.debug("Sending pass page requested")
-    membership_passes = db.session.query(Member, Pass).join(member_pass_association).join(Pass).all()
+    membership_passes = db.session.query(Member, Card).join(member_card_association).join(Card).all()
     return render_template('send_passes.html', data=membership_passes)
 
 
@@ -112,7 +112,7 @@ def index_members():
 @app.route("/passes", methods=['GET'])
 def index_passes():
     logging.debug("Pass index page requested")
-    passes = db.session.query(Pass).all()
+    passes = db.session.query(Card).all()
     return render_template('index_passes.html', data=passes)
 
 
@@ -177,11 +177,6 @@ def send_mail():
     with app.open_resource("Pass Files/{}".format(filename)) as fp:
         msg.attach("{}".format(filename), "Pass Files/{}".format(filename), fp.read())
     mail.send(msg)
-
-    # member = Member.query.filter_by(full_name=name).first()
-    # member_pass = Pass.query.filter_by(member_id=member.id).first()
-    # member_pass.last_sent = datetime.datetime.now()
-    # db.session.commit()
     logging.debug("mail sent")
     return recipient_email
 
@@ -192,7 +187,7 @@ def send_mail():
            methods=['POST'])
 def register_device(version, deviceLibraryIdentifier, passTypeIdentifier, serialNumber):
     recievedAuth = request.headers.get('Authorization').split(" ")[1]
-    aPass = Pass.query.filter_by(id=serialNumber).first()
+    aPass = Card.query.filter_by(id=serialNumber).first()
 
     # Verify that version and pass type ID is correct,
     # that serial number on pass exists, and the
@@ -229,7 +224,7 @@ def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier, tag):
         return not_authorized("Device authorization invalid")
 
     # Look at the registrations table, and determine which passes the device is registered for.
-    registrations = Device.query.join(registration).join(Pass).\
+    registrations = Device.query.join(registration).join(Card).\
             filter(registration.c.device_id == deviceLibraryIdentifier).all()
 
     # Look at the passes table, and determine which passes have changed since the given tag.
@@ -247,13 +242,14 @@ def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier, tag):
 
 # Getting the Latest Version of a Pass
 # webServiceURL/version/passes/passTypeIdentifier/serialNumber
+# api.sandbox.push.apple.com:443 <- send to this?
 @app.route("/<version>/passes/<passTypeIdentifier>/<serialNumber>", methods=['GET'])
 def get_latest_version(version, passTypeIdentifier, serialNumber):
     recievedAuth = request.headers.get('Authorization').split(" ")[1]
     if (version != 1) or (passTypeIdentifier != 'pass.org.conservatory.phipps.membership'):
         return not_authorized("Authorization Token does not match")
     else:
-        aPass = Pass.query.filter_by(id=serialNumber).first()
+        aPass = Card.query.filter_by(id=serialNumber).first()
         if (aPass.authenticationToken == recievedAuth):
             return json.dumps(aPass.data), 200, {'ContentType':'application/vnd.apple.pkpass'}
 

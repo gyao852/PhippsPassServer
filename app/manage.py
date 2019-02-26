@@ -2,11 +2,10 @@ import os
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from app import app, db
-from models import Member, Pass, Device
+from models import Member, Card, Device
 from datetime import datetime
+from wallet.models import Pass, Barcode, Generic
 import secrets
-import json
-import subprocess
 
 app.config.from_object(os.environ['APP_SETTINGS'])
 migrate = Migrate(app, db)
@@ -19,6 +18,7 @@ def seed():
     db.session.commit()
     db.drop_all()
     db.create_all()
+    "Dropped and created tables"
 
     member1 = Member(id='8-11111111', member_level='Student',
                      expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True, full_name='George Yao',
@@ -45,57 +45,89 @@ def seed():
                      address_line_2='One Schenley Park',
                      city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org')
 
-
     pass1AuthToken = secrets.token_hex(12)
     pass2AuthToken = secrets.token_hex(12)
     pass3AuthToken = secrets.token_hex(12)
     pass4AuthToken = secrets.token_hex(12)
-    pass1 = Pass(authenticationToken=pass1AuthToken,file_name=None,
+    pass1 = Card(authenticationToken=pass1AuthToken, file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass2 = Pass(authenticationToken=pass2AuthToken,file_name=None,
+    pass2 = Card(authenticationToken=pass2AuthToken, file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass3 = Pass(authenticationToken=pass3AuthToken,file_name=None,
+    pass3 = Card(authenticationToken=pass3AuthToken, file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass4 = Pass(authenticationToken=pass4AuthToken,file_name=None,
+    pass4 = Card(authenticationToken=pass4AuthToken, file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+
+    member1.cards.append(pass1)
+    member2.cards.append(pass2)
+    member3.cards.append(pass3)
+    member4.cards.append(pass4)
+    db.session.add(member1)
+    db.session.add(member2)
+    db.session.add(member3)
+    db.session.add(member4)
+    db.session.add(member5)
+
+    db.session.commit()
     allMembers = {member1: pass1, member2: pass2, member3: pass3, member4: pass4}
 
-
-
     # using pass.id as the serial number for now
-    # Python dictionary represntation of json pass file:
     for member, aPass in allMembers.items():
-        with open('passTemplate.json') as f:
-            data = json.load(f)
-            data['serialNumber'] = str(aPass.id)
-            data['webServiceURL'] = 'phipps-conservatory-passes.us-east-1.elasticbeanstalk.com'
-            data['authenticationToken'] = aPass.authenticationToken
-            data['barcode']['message'] = member.id
-            data['generic']['primaryFields'][0]['label'] = member.full_name
-            data['generic']['primaryFields'][0]['value'] = member.member_level
-            data['generic']['secondaryFields'][0]['value'] = member.id
-            if member.expiration_date is not None:
-                print(member.expiration_date)
-                print(member.expiration_date.strftime("%Y-%m-%dT%H:%M:%S"))
-                data['generic']['secondaryFields'][1]['value'] = member.expiration_date.strftime("%Y-%m-%dT19:30-06:00")
-            else:
-                data['generic']['secondaryFields'][1]['value'] = ''
-            fullAddress = member.address_line_1
-            if member.address_line_2 is not None:
-                fullAddress += ", " + member.address_line_2 + " "
-            fullAddress += member.city + " " + member.state + " " + member.zip
-            data['generic']['auxiliaryFields'][0]['value'] = fullAddress
-            data['generic']['backFields'][0]['value'] = member.associated_members
-            f.seek(0) # reset cursor to beginning
-            with open('PhippsSampleGeneric.pass/pass.json', 'w') as outfile:
-                json.dump(data, outfile)
-            print()
-            os.system("./signpass -p PhippsSampleGeneric.pass -o Pass\ Files/{}.pkpass".format(member.full_name.replace(" ","")))
-            aPass.file_name = '{}.pkpass'.format(member.full_name.replace(" ","")) # TODO: replace this with relative path
-    member1.passes.append(pass1)
-    member2.passes.append(pass2)
-    member3.passes.append(pass3)
-    member4.passes.append(pass4)
+        cardInfo = Generic()
+
+        # Name, Tier and membership
+        cardInfo.addPrimaryField('tier-and-name', member.full_name, member.member_level)
+        cardInfo.addSecondaryField('membership-number', member.id, 'Membership Number')
+
+        # Expiration
+        if member.expiration_date is not None:
+            cardInfo.addSecondaryField('expires', member.expiration_date.strftime("%Y-%m-%d"), 'Expires')
+        else:
+            cardInfo.addSecondaryField('expires', '', 'Expires')
+
+        # Address, and back fields (including associates)
+        fullAddress = member.address_line_1  + ", "
+        if member.address_line_2 is not None:
+            fullAddress += member.address_line_2 + " "
+        fullAddress += member.city + " " + member.state + " " + member.zip
+        cardInfo.addAuxiliaryField('address', fullAddress, 'Address Line 1')
+        cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
+        cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
+                              'Hours')
+        cardInfo.addBackField('member-info', '412/315-0656\nmembers@phipps.conservatory.org', 'Member Info')
+        cardInfo.addBackField('address',
+                              'One Schenley Park | Pittsburgh, Pa. 15213\n412/622-6914 | phipps.conservatory.org',
+                              'Address')
+        # Card properties
+        organizationName = 'Phipps Conservatory & Botanical Garden'
+        passTypeIdentifier = 'pass.org.conservatory.phipps.membership'
+        teamIdentifier = 'M6LYJ8LVCL'
+        passfile = Pass(cardInfo, passTypeIdentifier=passTypeIdentifier, organizationName=organizationName,
+                        teamIdentifier=teamIdentifier)
+        passfile.logoText = 'Phipps Conservatory'
+        passfile.description = 'Phipps Conservatory membership pass for {}'.format(member.full_name)
+        passfile.serialNumber = str(aPass.id)
+        passfile.barcode = Barcode(message=str(member.id))
+        # TODO: Add locations
+        # passfile.locations = Pass.Lff
+        passfile.foregroundColor='rgb(255, 255, 255)'
+        passfile.backgroundColor='rgb(121, 161, 56)'
+        passfile.labelColor='rgb(255, 255, 255)'
+
+        # Icon and Logo needed for pass to be successfully created
+        passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
+        passfile.addFile('logo.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
+        # TODO: add webserviceURL & authentication token
+        # passfile.webServiceURL = 'phipps-conservatory-passes.us-east-1.elasticbeanstalk.com'
+        # passfile.authenticationToken = aPass.authenticationToken
+        passfile.create('certificates/certificate.pem', 'certificates/key.pem', 'certificates/wwdr.pem',
+                        os.environ['PEM_PASSWORD'],
+                        './pkpass files/{}.pkpass'.format(member.full_name.replace(" ", "")))
+    "Created passes"
+    member1.cards.append(pass1)
+    member2.cards.append(pass2)
+    member3.cards.append(pass3)
+    member4.cards.append(pass4)
     db.session.add(member1)
     db.session.add(member2)
     db.session.add(member3)
