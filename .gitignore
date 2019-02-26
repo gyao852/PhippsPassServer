@@ -1,6 +1,7 @@
 *.zip
 app/certificates/*
 app/migrations/*
+Dockerfile
 #### joe made this: http://goel.io/joe
 
 #####=== Python ===#####

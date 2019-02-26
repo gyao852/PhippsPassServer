@@ -26,15 +26,19 @@ RUN pip3 install -r requirements.txt
 RUN chmod +x manage.py
 RUN chmod +x signpass
 
-# Default encoding
+# Environmental Variables
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
-
-# Other Variables
+ENV SECRET_KEY=CnySh+ACsQElyzHh
+ENV PASS_FOLDER=pkpass files
+ENV FLASK_APP=app.py
+ENV PEM_PASSWORD=qaplaqapla
+ENV SERVER_EMAIL=georgey852@gmail.com
+ENV SERVER_EMAIL_PASSWORD=LUfhspvz12
 ENV APP_SETTINGS=config.DevelopmentConfig
 ENV SECRET_KEY=CnySh+ACsQElyzHh
 ENV DATABASE_URL=postgresql://phipps:qaplaqapla@phippspassesdb.c25wttq29yrb.us-east-1.rds.amazonaws.com:5432/phipps_passes
-ENV FLASK_APP=app.py
+
 
 # Open up port 80 for https
 EXPOSE 80
