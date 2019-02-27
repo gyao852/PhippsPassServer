@@ -23,9 +23,10 @@ class Member(db.Model):
     cards = db.relationship('Card', secondary=member_card_association)
 
 # don't know why, but association table created when added primary_key=True? even though no need for above
+# TODO: changed from caad_id to card_id and psql broke; removing primary_key=True for now
 registration = db.Table('card_device_association', db.Model.metadata,
-                                   db.Column('crad_id', db.Integer, db.ForeignKey('card.id'), primary_key=True),
-                                   db.Column('device_id', db.Integer, db.ForeignKey('device.id'), primary_key=True))
+                                   db.Column('card_id', db.Integer, db.ForeignKey('card.id')),
+                                   db.Column('device_id', db.Integer, db.ForeignKey('device.id')))
 
 
 class Card(db.Model):

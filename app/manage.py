@@ -5,7 +5,7 @@ from app import app, db
 from models import Member, Card, Device
 from datetime import datetime
 from wallet.models import Pass, Barcode, Generic
-import secrets
+import hashlib
 
 app.config.from_object(os.environ['APP_SETTINGS'])
 migrate = Migrate(app, db)
@@ -15,10 +15,10 @@ manager.add_command('db', MigrateCommand)
 @manager.command
 def seed():
     "Adding seed data to the database"
+    print("Adding data")
     db.session.commit()
     db.drop_all()
     db.create_all()
-    "Dropped and created tables"
 
     member1 = Member(id='8-11111111', member_level='Student',
                      expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True, full_name='George Yao',
@@ -44,29 +44,34 @@ def seed():
                      associated_members=None, address_line_1='Phipps Conservatory and Botanical Gardens',
                      address_line_2='One Schenley Park',
                      city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org')
+    member6 = Member(id='8-11111112', member_level='Senior Citizen',
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True,  full_name='Larry Heinmann',
+                     associated_members=None, address_line_1='5000 Forbes Ave',
+                     address_line_2=None,
+                     city='Pittsburgh', state='PA', zip='15213', email='profh@cmu.edu')
 
-    pass1AuthToken = secrets.token_hex(12)
-    pass2AuthToken = secrets.token_hex(12)
-    pass3AuthToken = secrets.token_hex(12)
-    pass4AuthToken = secrets.token_hex(12)
-    pass1 = Card(authenticationToken=pass1AuthToken, file_name=None,
+    pass1 = Card(authenticationToken=hashlib.sha1(member1.id.encode('utf-8')).hexdigest(), file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass2 = Card(authenticationToken=pass2AuthToken, file_name=None,
+    pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(), file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass3 = Card(authenticationToken=pass3AuthToken, file_name=None,
+    pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(), file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass4 = Card(authenticationToken=pass4AuthToken, file_name=None,
+    pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(), file_name=None,
+                 last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+    pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(), file_name=None,
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
 
     member1.cards.append(pass1)
     member2.cards.append(pass2)
     member3.cards.append(pass3)
     member4.cards.append(pass4)
+    member6.cards.append(pass6)
     db.session.add(member1)
     db.session.add(member2)
     db.session.add(member3)
     db.session.add(member4)
     db.session.add(member5)
+    db.session.add(member6)
 
     db.session.commit()
     allMembers = {member1: pass1, member2: pass2, member3: pass3, member4: pass4}
@@ -94,7 +99,7 @@ def seed():
         cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
         cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
                               'Hours')
-        cardInfo.addBackField('member-info', '412/315-0656\nmembers@phipps.conservatory.org', 'Member Info')
+        cardInfo.addBackField('member-info', '(412)-315-0656\nmembers@phipps.conservatory.org', 'Member Info')
         cardInfo.addBackField('address',
                               'One Schenley Park | Pittsburgh, Pa. 15213\n412/622-6914 | phipps.conservatory.org',
                               'Address')
@@ -117,23 +122,25 @@ def seed():
         # Icon and Logo needed for pass to be successfully created
         passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
         passfile.addFile('logo.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
-        # TODO: add webserviceURL & authentication token
-        # passfile.webServiceURL = 'phipps-conservatory-passes.us-east-1.elasticbeanstalk.com'
-        # passfile.authenticationToken = aPass.authenticationToken
+        passfile.webServiceURL = 'https://phippsconservatory.xyz'
+        passfile.authenticationToken = str(aPass.authenticationToken)
         passfile.create('certificates/certificate.pem', 'certificates/key.pem', 'certificates/wwdr.pem',
                         os.environ['PEM_PASSWORD'],
                         './pkpass files/{}.pkpass'.format(member.full_name.replace(" ", "")))
-    "Created passes"
+
     member1.cards.append(pass1)
     member2.cards.append(pass2)
     member3.cards.append(pass3)
     member4.cards.append(pass4)
+    member6.cards.append(pass6)
     db.session.add(member1)
     db.session.add(member2)
     db.session.add(member3)
     db.session.add(member4)
     db.session.add(member5)
+    db.session.add(member6)
     db.session.commit()
+    print("Successfully added seed data")
 
 
 if __name__ == '__main__':

@@ -4,12 +4,11 @@ $(document).ready(function() {
   $("a.mailButton").click(function() {
     $.ajax({
       type: 'POST',
-      url: "http://127.0.0.1:5000/send_mail",
-      data: {email: $(this).data("email"), name: $(this).data("full_name")}, //passing some input here
+      url: "/send_mail",
+      data: {email: $(this).data("email"), name: $(this).data("full_name"), authtok: $(this).data("auth") }, //passing some input here
       dataType: "text",
       success: function(response) {
-          // output.value = response;
-          alert(response);
+          alert("Pass sent. Remove this alert in the future.");
       }
     }).done(function(data){
           console.log(data);
