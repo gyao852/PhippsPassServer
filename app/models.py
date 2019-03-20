@@ -19,7 +19,7 @@ class Member(db.Model):
     city = db.Column(db.String(100))
     state = db.Column(db.String(100))
     zip = db.Column(db.String(100))
-    email = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), nullable=False) # Filter before entering
     cards = db.relationship('Card', secondary=member_card_association)
 
 # don't know why, but association table created when added primary_key=True? even though no need for above

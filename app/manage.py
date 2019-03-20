@@ -45,20 +45,20 @@ def seed():
                      address_line_2='One Schenley Park',
                      city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org')
     member6 = Member(id='8-11111112', member_level='Senior Citizen',
-                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True,  full_name='Larry Heinmann',
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True,  full_name='Larry Heimann',
                      associated_members=None, address_line_1='5000 Forbes Ave',
                      address_line_2=None,
                      city='Pittsburgh', state='PA', zip='15213', email='profh@cmu.edu')
 
-    pass1 = Card(authenticationToken=hashlib.sha1(member1.id.encode('utf-8')).hexdigest(), file_name=None,
+    pass1 = Card(authenticationToken=hashlib.sha1(member1.id.encode('utf-8')).hexdigest(), file_name="GeorgeYao.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(), file_name=None,
+    pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(), file_name="MikeCassidy.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(), file_name=None,
+    pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(), file_name="DaraGoldhagen.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(), file_name=None,
+    pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(), file_name="MonicaMarchese.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(), file_name=None,
+    pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(), file_name="LarryHeimann.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
 
     member1.cards.append(pass1)

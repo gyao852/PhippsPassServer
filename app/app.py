@@ -1,7 +1,8 @@
 import os
 import logging
 import threading
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify, render_template, send_from_directory, flash, redirect
+from werkzeug.utils import secure_filename
 from flask import make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
@@ -13,7 +14,7 @@ import json
 from datetime import datetime
 from wallet.models import Pass, Barcode, Generic
 import hashlib
-import csv
+import pandas as pd
 
 app = Flask(__name__)
 app.config.from_object(os.environ['APP_SETTINGS'])
@@ -34,7 +35,8 @@ logging.basicConfig(level=logging.DEBUG,
 
 # configure pass folder destination folder
 app.config['PASS_FOLDER'] = './Pass Files'
-
+app.config['UPLOAD_FOLDER'] = './last membership'
+ALLOWED_EXTENSIONS = set(['csv'])
 from models import Member, Card, Device, member_card_association, registration
 
 if __name__ == "__main__":
@@ -70,7 +72,8 @@ def index():
     members = Member.query.all()
     passes = Card.query.all()
     devices = Device.query.all()
-    return render_template('index.html', memberCnt=len(members), passCnt=len(passes), deviceCnt=len(devices), pendingCnt=0)
+    return render_template('index.html', memberCnt=len(members), passCnt=len(passes), deviceCnt=len(devices),
+                           pendingCnt=0)
 
 
 # Member index page shows all members, and
@@ -82,23 +85,87 @@ def send_passes():
     return render_template('send_passes.html', data=membership_passes)
 
 
+# # Member index page shows all members, and
+# # ability to send emails to users
+# @app.route("/create_pass", methods=['GET'])
+# def create_pass():
+#     logging.debug("Member page requested")
+#     data = Member.query.order_by(Member.full_name.desc()).all()
+#     return render_template('tables.html', members=data)
+
+
 # Member index page shows all members, and
 # ability to send emails to users
-@app.route("/create_pass", methods=['GET'])
-def create_pass():
-    logging.debug("Member page requested")
-    data = Member.query.order_by(Member.full_name.desc()).all()
-    return render_template('tables.html', members=data)
-
-
-
-# Member index page shows all members, and
-# ability to send emails to users
-@app.route("/upload_data", methods=['GET'])
+@app.route("/upload_membership", methods=['GET','POST'])
 def upload_membership():
-    logging.debug("Member page requested")
-    data = Member.query.order_by(Member.full_name.desc()).all()
-    return render_template('tables.html', members=data)
+    if request.method == 'POST':
+        logging.debug("Upload membership data page requested")
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('File not found')
+            return redirect(request.url)
+        file = request.files['file']
+        # if user does not select file, browser also
+        # submit an empty part without filename
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # last_member.csv is the last uploaded
+            # filename is current file being uploaded name
+            # find_differnce creates a update.csv, the difference
+            # between the two files.
+            if find_difference(filename):
+                insertUpdate()
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
+            else:
+                logging.debug("Difference wasn't properly calculated")
+
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        flash('Successfully uploaded')
+        return render_template('upload_membership.html')
+    return render_template('upload_membership.html')
+
+
+def insertUpdate():
+    update_file = os.path.join(app.config['UPLOAD_FOLDER'], "update.csv")
+    column_names = ["id", "member_level", "expiration_date", "status", "associates", "first_name", "last_name"
+                                                                                                   "address_1",
+                    "address_2", "city", "state", "zip", "email", "notes"]
+    df = pd.read_csv(update_file, names=column_names)
+    for row in df.itertuples():
+        existing_mem = db.session.query(Member).filter(id=row.id).all()
+        if existing_mem is None:
+            new_member = Member(id=row.id, member_level=row.member_level,
+                                expiration_date=row.expiration_date, status=row.staus,
+                                full_name=row.first_name + " " + row.last_name,
+                                associated_members=row.associates, address_line_1=row.address_1,
+                                address_line_2=row.address_2,
+                                city=row.city, state=row.state, zip=row.zip, email=row.email)
+            new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
+                            file_name=row.first_name + row.last_name + ".pkpass",
+                            last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+            new_member.cards.append(new_pass)
+            db.session.add(new_member)
+            db.session.commit
+            create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
+                               row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
+        else:
+            existing_mem.member_level = row.member_level
+            existing_mem.expiration_date = row.expiration_date
+            existing_mem.status = row.status
+            existing_mem.full_name = row.first_name + row.last_name
+            existing_mem.associated_members = row.associates
+            existing_mem.address_1 = row.address_1
+            existing_mem.address_2 = row.address_2
+            existing_mem.city = row.city
+            existing_mem.state = row.state
+            existing_mem.zip = row.zip
+            existing_mem.email = row.email
+            create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
+                               row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
+            db.session.commit()
 
 
 # Member index page shows all members, and
@@ -126,7 +193,6 @@ def index_devices():
     logging.debug("Device index page requested")
     devices = db.session.query(Device).all()
     return render_template('index_devices.html', data=devices)
-
 
 
 # register user
@@ -220,16 +286,15 @@ def register_device(version, deviceLibraryIdentifier, passTypeIdentifier, serial
             return json.dumps({'success': True}), 201, {'ContentType': 'application/json'}
         else:
             logging.debug("Device already registered!")
-            return json.dumps({'success': False}), 200, {'ContentType':'application/json'}
+            return json.dumps({'success': False}), 200, {'ContentType': 'application/json'}
 
 
 # Getting the Serial Numbers for Passes Associated with a Device
 # webServiceURL/<v1>/devices/deviceLibraryIdentifier/registrations/passTypeIdentifier?passesUpdatedSince=tag
-@app.route("/<version>/devices/<deviceLibraryIdentifier>/registrations/<passTypeIdentifier>/",methods=['GET'])
+@app.route("/<version>/devices/<deviceLibraryIdentifier>/registrations/<passTypeIdentifier>/", methods=['GET'])
 @app.route("/<version>/devices/<deviceLibraryIdentifier>/registrations/<passTypeIdentifier>?passesUpdatedSince=<tag>",
            methods=['GET'])
-def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier, tag):
-    # TODO: get_serial() missing 1 required positional argument
+def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier):
     # Verify that version and pass type ID is correct,
     # that serial number on pass exists, and the
     # authentication token is correct
@@ -237,9 +302,17 @@ def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier, tag):
     if (version != 'v1') or (passTypeIdentifier != 'pass.org.conservatory.phipps.membership') \
             or (db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)).first() is None):
         return not_authorized("Device authorization invalid")
+    tag = request.args.get("tag");
 
     # Look at the registrations table, and determine which passes the device is registered for.
-    registrations = Device.query.join(registration).join(Card).\
+    # Note: Tag is an optional query parameter
+    if tag is not None:
+        logging.debug("TAG: ")
+        logging.debug(tag);
+        registrations = Device.query.join(registration).join(Card). \
+            filter(registration.c.device_id == deviceLibraryIdentifier).filter(Card.last_updated >= tag).all()
+    else:
+        registrations = Device.query.join(registration).join(Card). \
             filter(registration.c.device_id == deviceLibraryIdentifier).all()
 
     # Look at the passes table, and determine which passes have changed since the given tag.
@@ -247,14 +320,14 @@ def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier, tag):
     # If no update tag is provided, return all the passes that the device is registered for.
     # For example, you return all registered passes the very first time a device communicates with your server.
     if len(registrations) > 0:
-        # TODO: add Tag check; related to error above
         serialNumbers = []
         for aRegistration in registrations:
             serialNumbers.append(aRegistration.pass_id)
         logging.debug("Sending list of passes device is registered for")
-        return json.dumps({'lastUpdated': datetime.datetime.now(), 'serialNumbers': serialNumbers}),\
+        return json.dumps({'lastUpdated': datetime.datetime.now(), 'serialNumbers': serialNumbers}), \
                200, {'ContentType': 'application/json'}
     else:
+        logging.debug("No registrations found! Should at least be one.")
         return not_authorized("No registered devices.")
 
 
@@ -269,7 +342,8 @@ def get_latest_version(version, passTypeIdentifier, serialNumber):
     else:
         aPass = Card.query.filter_by(id=serialNumber).first()
         if (aPass is not None and aPass.authenticationToken == recievedAuth):
-            return send_from_directory('/pkpass files', aPass.file_name,mimetype='application/vnd.apple.pkpass')
+            return send_from_directory('/pkpass files', aPass.file_name, mimetype='application/vnd.apple.pkpass')
+
 
 # Unregistering a Device
 # deviceLibraryIdentifier/registrations/passTypeIdentifier/serialNumber
@@ -281,9 +355,10 @@ def unregister_device(version, deviceLibraryIdentifier, passTypeIdentifier, seri
         return not_authorized("Version and Pass Type invalid")
     device = db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)).get(1)
     # TODO: Properly delete
-    cards_device = db.session.query(Card, Device).join(registration).filter(Device.device_lib_id == deviceLibraryIdentifier)
+    cards_device = db.session.query(Card, Device).join(registration).filter(
+        Device.device_lib_id == deviceLibraryIdentifier)
 
-    #for card, device in cards_device:
+    # for card, device in cards_device:
     for reg in cards_device.registration:
         db.session.delete(reg)
     db.session.commit()
@@ -299,9 +374,20 @@ def logging_error():
         logging.debug(str(msg))
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 # Helper function to find difference
 # in the csv files
 def find_difference(newcsv):
+    # If no previous membership data is in postGres
+    if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
+        os.rename(os.path.join(app.config['UPLOAD_FOLDER'], newcsv),
+                  os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
+        return True
     try:
         with open('memberdata/last_member.csv', 'r') as t1, open('memberdata/' + newcsv, 'r') as t2:
             fileone = t1.readlines()
@@ -322,20 +408,22 @@ def find_difference(newcsv):
     except:
         return False
 
+
 # Helper function to applied for each record
 # Read in the updated membership record
 # Find respetive card record if exist;
 # create or update card record
 def create_member_pass(id, member_level, expiration_date, status, full_name,
-                associated_members, add_1, add_2, city, state, zip, email):
-    # using pass.id as the serial number for now
+                       associated_members, add_1, add_2, city, state, zip, email):
+    # TOOD: need to delete any existing files first, and then remake again and using pass.id as the serial number for now
     try:
         member = Member(id=id, member_level=member_level,
-                         expiration_date=datetime.strptime(expiration_date, '%m/%d/%Y'), status=status, full_name=full_name,
-                         associated_members=associated_members, address_line_1=add_1, address_line_2=add_2,
-                         city=city, state=state, zip=zip, email=email)
+                        expiration_date=datetime.strptime(expiration_date, '%m/%d/%Y'), status=status,
+                        full_name=full_name,
+                        associated_members=associated_members, address_line_1=add_1, address_line_2=add_2,
+                        city=city, state=state, zip=zip, email=email)
         card = Card(authenticationToken=hashlib.sha1(member.id.encode('utf-8')).hexdigest(), file_name=None,
-                     last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+                    last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
         cardInfo = Generic()
 
         # Name, Tier and membership
@@ -392,8 +480,6 @@ def create_member_pass(id, member_level, expiration_date, status, full_name,
     except:
         logging.debug("Exception occured when trying to member, and card.")
         return False
-
-
 
 # configure queue for training models
 # queue = Queue(maxsize=100)
