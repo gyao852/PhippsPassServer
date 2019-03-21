@@ -2,6 +2,7 @@
 app/certificates/*
 app/migrations/*
 Dockerfile
+Archive.zip
 #### joe made this: http://goel.io/joe
 
 #####=== Python ===#####
