@@ -3,6 +3,8 @@ app/certificates/*
 app/migrations/*
 Dockerfile
 Archive.zip
+.idea
+.ebignore
 #### joe made this: http://goel.io/joe
 
 #####=== Python ===#####
