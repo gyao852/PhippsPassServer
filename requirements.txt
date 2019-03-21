@@ -35,6 +35,8 @@ Mako==1.0.7
 MarkupSafe==1.1.0
 marshmallow==2.18.1
 marshmallow-sqlalchemy==0.16.0
+numpy==1.16.2
+pandas==0.24.2
 pathspec==0.5.5
 psycopg2==2.7.7
 psycopg2-binary==2.7.7

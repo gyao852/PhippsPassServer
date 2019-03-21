@@ -1,19 +1,19 @@
 import os
 import logging
-import threading
 from flask import Flask, request, jsonify, render_template, send_from_directory, flash, redirect
 from werkzeug.utils import secure_filename
 from flask import make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-from queue import Queue
 from flask_mail import Mail
 from flask_mail import Message
-from flask import send_file, Response
 import json
 from datetime import datetime
 from wallet.models import Pass, Barcode, Generic
 import hashlib
+from pushjack import APNSSandboxClient
+from flask import send_file, Response
+# from pushjack import APNSClient
 import pandas as pd
 
 app = Flask(__name__)
@@ -85,18 +85,9 @@ def send_passes():
     return render_template('send_passes.html', data=membership_passes)
 
 
-# # Member index page shows all members, and
-# # ability to send emails to users
-# @app.route("/create_pass", methods=['GET'])
-# def create_pass():
-#     logging.debug("Member page requested")
-#     data = Member.query.order_by(Member.full_name.desc()).all()
-#     return render_template('tables.html', members=data)
-
-
 # Member index page shows all members, and
 # ability to send emails to users
-@app.route("/upload_membership", methods=['GET','POST'])
+@app.route("/upload_membership", methods=['GET', 'POST'])
 def upload_membership():
     if request.method == 'POST':
         logging.debug("Upload membership data page requested")
@@ -152,6 +143,7 @@ def insertUpdate():
             create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
                                row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
         else:
+            # Update existing member record and card record
             existing_mem.member_level = row.member_level
             existing_mem.expiration_date = row.expiration_date
             existing_mem.status = row.status
@@ -165,6 +157,21 @@ def insertUpdate():
             existing_mem.email = row.email
             create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
                                row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
+            registrations = Device.query.join(registration).join(Card). \
+                filter(registration.c.card_id == row.id).all()
+
+            for device in registrations:
+                token = device.push_token
+                alert = {};
+                client = APNSSandboxClient(certificate='certificates/certificate.pem',
+                                           default_error_timeout=10,
+                                           default_expiration_offset=2592000,
+                                           default_batch_size=100,
+                                           default_retries=5)
+                res = client.send(token, alert)
+                # TODO: if APNs tells you that a push token is invalid,
+                #  remove that device and its registrations from your server.
+                client.close()
             db.session.commit()
 
 
@@ -204,7 +211,7 @@ def send_mail():
     logging.debug("send_mail called")
     msg = Message("Digital memberhsip card | Phipps Conservatory and Botanical Gardens",
                   sender="georgeY852@gmail.com",
-                  recipients=["gyao@andrew.cmu.edu"])
+                  recipients=[recipient_email])
     msg.html = '''
         Dear {},<br><br>
         Phipps Conservatory is always seeking to continue it's
@@ -246,7 +253,6 @@ def send_mail():
         msg.attach("{}".format(filename), "pkpass files/{}".format(filename), fp.read())
     mail.send(msg)
     logging.debug(authtok);
-    # TODO: aPass is not being updated
     aPass = Card.query.filter_by(authenticationToken=authtok).first()
     aPass.last_sent = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     db.session.add(aPass)
@@ -389,11 +395,12 @@ def find_difference(newcsv):
                   os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
         return True
     try:
-        with open('memberdata/last_member.csv', 'r') as t1, open('memberdata/' + newcsv, 'r') as t2:
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
+                os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
             fileone = t1.readlines()
             filetwo = t2.readlines()
 
-        with open('memberdata/update.csv', 'w') as outFile:
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as outFile:
             for line in filetwo:
                 if line not in fileone:
                     outFile.write(line)
@@ -480,9 +487,3 @@ def create_member_pass(id, member_level, expiration_date, status, full_name,
     except:
         logging.debug("Exception occured when trying to member, and card.")
         return False
-
-# configure queue for training models
-# queue = Queue(maxsize=100)
-# thread = threading.Thread(target=create_pass, name='PassSignageDaemon')
-# thread.setDaemon(False)
-# thread.start()
