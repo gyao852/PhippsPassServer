@@ -9,12 +9,12 @@ from flask_mail import Mail
 from flask_mail import Message
 import json
 from datetime import datetime
-from wallet.models import Pass, Barcode, Generic
+from wallet.models import Pass, Barcode, Generic, Location
 import hashlib
-from pushjack import APNSSandboxClient
-from flask import send_file, Response
-# from pushjack import APNSClient
+from pushjack import APNSClient
+import shutil
 import pandas as pd
+import csv
 
 app = Flask(__name__)
 app.config.from_object(os.environ['APP_SETTINGS'])
@@ -92,6 +92,7 @@ def upload_membership():
     if request.method == 'POST':
         logging.debug("Upload membership data page requested")
         # check if the post request has the file part
+        logging.debug(request.files)
         if 'file' not in request.files:
             flash('File not found')
             return redirect(request.url)
@@ -103,6 +104,7 @@ def upload_membership():
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             # last_member.csv is the last uploaded
             # filename is current file being uploaded name
             # find_differnce creates a update.csv, the difference
@@ -112,8 +114,7 @@ def upload_membership():
                 os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
             else:
                 logging.debug("Difference wasn't properly calculated")
-
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        # os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         flash('Successfully uploaded')
         return render_template('upload_membership.html')
     return render_template('upload_membership.html')
@@ -121,57 +122,78 @@ def upload_membership():
 
 def insertUpdate():
     update_file = os.path.join(app.config['UPLOAD_FOLDER'], "update.csv")
-    column_names = ["id", "member_level", "expiration_date", "status", "associates", "first_name", "last_name"
-                                                                                                   "address_1",
-                    "address_2", "city", "state", "zip", "email", "notes"]
-    df = pd.read_csv(update_file, names=column_names)
+    df = pd.read_csv(update_file)
+    df.columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
+                  "address_1", "address_2", "city", "state", "zip", "email", "notes", "quantity", "quantity_active",
+                  "queryid"]
+    # logging.debug(df)
     for row in df.itertuples():
-        existing_mem = db.session.query(Member).filter(id=row.id).all()
+        existing_mem = Member.query.filter_by(id=row.id).first()
+        state = False
+        exp_date = None
+        add_2 = row.address_2
+        if row.status == 'Active':
+            state = True
+        if pd.isna(row.expiration_date) is False:
+            exp_date = datetime.strptime(row.expiration_date, '%m/%d/%Y')
+        if pd.isna(row.address_2):
+            add_2 = None
         if existing_mem is None:
-            new_member = Member(id=row.id, member_level=row.member_level,
-                                expiration_date=row.expiration_date, status=row.staus,
+            new_member = Member(id=row.id, member_level=row.level,
+                                expiration_date=exp_date, status=state,
                                 full_name=row.first_name + " " + row.last_name,
                                 associated_members=row.associates, address_line_1=row.address_1,
-                                address_line_2=row.address_2,
+                                address_line_2=add_2,
                                 city=row.city, state=row.state, zip=row.zip, email=row.email)
-            new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
-                            file_name=row.first_name + row.last_name + ".pkpass",
-                            last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-            new_member.cards.append(new_pass)
+            if exp_date is not None:
+                new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
+                                file_name=row.first_name + row.last_name + ".pkpass",
+                                last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+                new_member.cards.append(new_pass)
             db.session.add(new_member)
-            db.session.commit
-            create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
-                               row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
+            db.session.commit()
+            if exp_date is not None:
+                create_member_pass(row.id, new_pass.file_name)
         else:
-            # Update existing member record and card record
-            existing_mem.member_level = row.member_level
-            existing_mem.expiration_date = row.expiration_date
-            existing_mem.status = row.status
-            existing_mem.full_name = row.first_name + row.last_name
+            # Update existing member record, create a new pass
+            # and then update existing pass record
+            existing_mem.member_level = row.level
+            existing_mem.expiration_date = exp_date
+            existing_mem.status = state
+            existing_mem.full_name = row.first_name + " " + row.last_name
             existing_mem.associated_members = row.associates
             existing_mem.address_1 = row.address_1
-            existing_mem.address_2 = row.address_2
+            existing_mem.address_2 = add_2
             existing_mem.city = row.city
             existing_mem.state = row.state
             existing_mem.zip = row.zip
             existing_mem.email = row.email
-            create_member_pass(row.id, row.member_level, row.expiration_date, row.status, new_member.full_name,
-                               row.associates, row.address_1, row.address_2, row.city, row.state, row.zip, row.email)
-            registrations = Device.query.join(registration).join(Card). \
-                filter(registration.c.card_id == row.id).all()
-
-            for device in registrations:
-                token = device.push_token
-                alert = {};
-                client = APNSSandboxClient(certificate='certificates/certificate.pem',
-                                           default_error_timeout=10,
-                                           default_expiration_offset=2592000,
-                                           default_batch_size=100,
-                                           default_retries=5)
-                res = client.send(token, alert)
-                # TODO: if APNs tells you that a push token is invalid,
-                #  remove that device and its registrations from your server.
-                client.close()
+            if exp_date is not None:
+                create_member_pass(row.id, row.first_name + row.last_name + ".pkpass")
+                card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
+                    member_card_association.c.member_id == row.id).first()[1]
+                card.last_updated = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                db.session.commit()
+                registrations = Device.query.join(registration).join(Card). \
+                    filter(registration.c.card_id == card.id).all()
+                # Notify devices that exisits
+                for device in registrations:
+                    logging.debug("Attempting to send push to APN")
+                    token = device.push_token
+                    alert = {};
+                    client = APNSClient(certificate='certificates/apn_certificate.pem',
+                                        default_error_timeout=10,
+                                        default_expiration_offset=2592000,
+                                        default_batch_size=100,
+                                        default_retries=5)
+                    res = client.send(token, alert)
+                    logging.debug(res.errors)
+                    logging.debug(res.failures)
+                    logging.debug(res.message)
+                    logging.debug(res.successes)
+                    # TODO: if APNs tells you that a push token is invalid,
+                    #  remove that device and its registrations from your server.
+                    client.close()
             db.session.commit()
 
 
@@ -374,7 +396,7 @@ def unregister_device(version, deviceLibraryIdentifier, passTypeIdentifier, seri
 # Logging errors
 # webServiceURL/version/log
 @app.route("/<version>/log", methods=['POST'])
-def logging_error():
+def logging_error(version):
     msgs = request.values.get('logs')
     for msg in msgs:
         logging.debug(str(msg))
@@ -390,17 +412,24 @@ def allowed_file(filename):
 # in the csv files
 def find_difference(newcsv):
     # If no previous membership data is in postGres
-    if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
+    if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")) is False:
         os.rename(os.path.join(app.config['UPLOAD_FOLDER'], newcsv),
                   os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
+        shutil.copyfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"),
+                        os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
         return True
     try:
+        columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
+                   "address_1", "address_2", "city", "state", "zip", "email", "notes", "quantity", "quantity_active",
+                   "queryid"]
         with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
                 os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
             fileone = t1.readlines()
             filetwo = t2.readlines()
 
         with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as outFile:
+            writer = csv.writer(outFile)
+            writer.writerow(columns)
             for line in filetwo:
                 if line not in fileone:
                     outFile.write(line)
@@ -408,9 +437,10 @@ def find_difference(newcsv):
         t1.close()
         t2.close()
         outFile.close()
-        if os.path.exists('memberdata/last_member.csv'):
-            os.remove('memberdata/last_member.csv')
-        os.rename('memberdata/' + newcsv, 'memberdata/last_member.csv')
+        if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
+        os.rename(os.path.join(app.config['UPLOAD_FOLDER'], newcsv),
+                  os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
         return True
     except:
         return False
@@ -420,70 +450,61 @@ def find_difference(newcsv):
 # Read in the updated membership record
 # Find respetive card record if exist;
 # create or update card record
-def create_member_pass(id, member_level, expiration_date, status, full_name,
-                       associated_members, add_1, add_2, city, state, zip, email):
-    # TOOD: need to delete any existing files first, and then remake again and using pass.id as the serial number for now
-    try:
-        member = Member(id=id, member_level=member_level,
-                        expiration_date=datetime.strptime(expiration_date, '%m/%d/%Y'), status=status,
-                        full_name=full_name,
-                        associated_members=associated_members, address_line_1=add_1, address_line_2=add_2,
-                        city=city, state=state, zip=zip, email=email)
-        card = Card(authenticationToken=hashlib.sha1(member.id.encode('utf-8')).hexdigest(), file_name=None,
-                    last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-        cardInfo = Generic()
+def create_member_pass(id, filename):
+    if os.path.isfile(os.path.join(app.config['PASS_FOLDER'], filename)):
+        os.remove(os.path.join(app.config['PASS_FOLDER'], filename))
 
-        # Name, Tier and membership
-        cardInfo.addPrimaryField('tier-and-name', member.full_name, member.member_level)
-        cardInfo.addSecondaryField('membership-number', member.id, 'Membership Number')
+    member = Member.query.filter_by(id=id).first()
+    card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
+        member_card_association.c.member_id == member.id).first()[1]
+    cardInfo = Generic()
 
-        # Expiration
-        if member.expiration_date is not None:
-            cardInfo.addSecondaryField('expires', member.expiration_date.strftime("%Y-%m-%d"), 'Expires')
-        else:
-            cardInfo.addSecondaryField('expires', '', 'Expires')
+    # Name, Tier and membership
+    cardInfo.addPrimaryField('tier-and-name', member.full_name, member.member_level)
+    cardInfo.addSecondaryField('membership-number', member.id, 'Membership Number')
 
-        # Address, and back fields (including associates)
-        fullAddress = member.address_line_1 + ", "
-        if member.address_line_2 is not None:
-            fullAddress += member.address_line_2 + " "
-        fullAddress += member.city + " " + member.state + " " + member.zip
-        cardInfo.addAuxiliaryField('address', fullAddress, 'Address Line 1')
-        cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
-        cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
-                              'Hours')
-        cardInfo.addBackField('member-info', '(412)-315-0656\nmembers@phipps.conservatory.org', 'Member Info')
-        cardInfo.addBackField('address',
-                              'One Schenley Park | Pittsburgh, Pa. 15213\n412/622-6914 | phipps.conservatory.org',
-                              'Address')
-        # Card properties
-        organizationName = 'Phipps Conservatory & Botanical Garden'
-        passTypeIdentifier = 'pass.org.conservatory.phipps.membership'
-        teamIdentifier = 'M6LYJ8LVCL'
-        passfile = Pass(cardInfo, passTypeIdentifier=passTypeIdentifier, organizationName=organizationName,
-                        teamIdentifier=teamIdentifier)
-        passfile.logoText = 'Phipps Conservatory'
-        passfile.description = 'Phipps Conservatory membership pass for {}'.format(member.full_name)
-        passfile.serialNumber = str(card.id)
-        passfile.barcode = Barcode(message=str(member.id))
-        # TODO: Add locations
-        # passfile.locations = Pass.Lff
-        passfile.foregroundColor = 'rgb(255, 255, 255)'
-        passfile.backgroundColor = 'rgb(121, 161, 56)'
-        passfile.labelColor = 'rgb(255, 255, 255)'
+    # Expiration
+    if member.expiration_date is not None:
+        cardInfo.addSecondaryField('expires', member.expiration_date.strftime("%Y-%m-%d"), 'Expires')
+    else:
+        cardInfo.addSecondaryField('expires', '', 'Expires')
 
-        # Icon and Logo needed for pass to be successfully created
-        passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
-        passfile.addFile('logo.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
-        passfile.webServiceURL = 'https://phippsconservatory.xyz'
-        passfile.authenticationToken = str(card.authenticationToken)
-        passfile.create('certificates/certificate.pem', 'certificates/key.pem', 'certificates/wwdr.pem',
-                        os.environ['PEM_PASSWORD'],
-                        './pkpass files/{}.pkpass'.format(member.full_name.replace(" ", "")))
-        member.cards.append(card)
-        db.session.add(member)
-        db.session.commit()
-        return True
-    except:
-        logging.debug("Exception occured when trying to member, and card.")
-        return False
+    # Address, and back fields (including associates)
+    fullAddress = member.address_line_1 + ", "
+    if member.address_line_2 is not None:
+        fullAddress += member.address_line_2 + " "
+    fullAddress += member.city + " " + member.state + " " + str(member.zip)
+    cardInfo.addAuxiliaryField('address', fullAddress, 'Address Line 1')
+    cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
+    cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
+                          'Hours')
+    cardInfo.addBackField('member-info', '(412)-315-0656\nmembers@phipps.conservatory.org', 'Member Info')
+    cardInfo.addBackField('address',
+                          'One Schenley Park | Pittsburgh, Pa. 15213\n412/622-6914 | phipps.conservatory.org',
+                          'Address')
+    # Card properties
+    organizationName = 'Phipps Conservatory & Botanical Garden'
+    passTypeIdentifier = 'pass.org.conservatory.phipps.membership'
+    teamIdentifier = 'M6LYJ8LVCL'
+    passfile = Pass(cardInfo, passTypeIdentifier=passTypeIdentifier, organizationName=organizationName,
+                    teamIdentifier=teamIdentifier)
+    passfile.logoText = 'Phipps Conservatory'
+    passfile.description = 'Phipps Conservatory membership pass for {}'.format(member.full_name)
+    passfile.serialNumber = str(card.id)
+    passfile.barcode = Barcode(message=str(member.id))
+    # Value for key 'locations' must be of class NSArray, but is actually of class __NSDictionaryI."
+    # Tried to fix manually but too convoluted
+    # passfile.locations = Location(latitude=40.4392, longitude=-79.9474)
+    passfile.foregroundColor = 'rgb(255, 255, 255)'
+    passfile.backgroundColor = 'rgb(121, 161, 56)'
+    passfile.labelColor = 'rgb(255, 255, 255)'
+
+    # Icon and Logo needed for pass to be successfully created
+    passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
+    passfile.addFile('logo.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
+    passfile.webServiceURL = 'https://phippsconservatory.xyz'
+    passfile.authenticationToken = str(card.authenticationToken)
+    passfile.create('certificates/certificate.pem', 'certificates/key.pem', 'certificates/wwdr.pem',
+                    os.environ['PEM_PASSWORD'],
+                    './pkpass files/{}.pkpass'.format(member.full_name.replace(" ", "")))
+    return True

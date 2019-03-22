@@ -2,15 +2,16 @@ import os
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
 from app import app, db
-from models import Member, Card, Device
+from models import Member, Card
 from datetime import datetime
-from wallet.models import Pass, Barcode, Generic
+from wallet.models import Pass, Barcode, Generic, Location
 import hashlib
 
 app.config.from_object(os.environ['APP_SETTINGS'])
 migrate = Migrate(app, db)
 manager = Manager(app)
 manager.add_command('db', MigrateCommand)
+
 
 @manager.command
 def seed():
@@ -40,25 +41,30 @@ def seed():
                      address_line_1='90 South 25th Street', address_line_2='Apartment 2', city='Pittsburgh', state='PA',
                      zip='15203', email='mmarchese@phipps.conservatory.org')
     member5 = Member(id='8-10061046', member_level='Employee',
-                     expiration_date=None, status=True,  full_name='Nalitz Christine',
+                     expiration_date=None, status=True, full_name='Nalitz Christine',
                      associated_members=None, address_line_1='Phipps Conservatory and Botanical Gardens',
                      address_line_2='One Schenley Park',
                      city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org')
     member6 = Member(id='8-11111112', member_level='Senior Citizen',
-                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True,  full_name='Larry Heimann',
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y'), status=True,
+                     full_name='Larry Heimann',
                      associated_members=None, address_line_1='5000 Forbes Ave',
                      address_line_2=None,
                      city='Pittsburgh', state='PA', zip='15213', email='profh@cmu.edu')
 
     pass1 = Card(authenticationToken=hashlib.sha1(member1.id.encode('utf-8')).hexdigest(), file_name="GeorgeYao.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(), file_name="MikeCassidy.pkpass",
+    pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(),
+                 file_name="MikeCassidy.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(), file_name="DaraGoldhagen.pkpass",
+    pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(),
+                 file_name="DaraGoldhagen.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(), file_name="MonicaMarchese.pkpass",
+    pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(),
+                 file_name="MonicaMarchese.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
-    pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(), file_name="LarryHeimann.pkpass",
+    pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(),
+                 file_name="LarryHeimann.pkpass",
                  last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
 
     member1.cards.append(pass1)
@@ -91,7 +97,7 @@ def seed():
             cardInfo.addSecondaryField('expires', '', 'Expires')
 
         # Address, and back fields (including associates)
-        fullAddress = member.address_line_1  + ", "
+        fullAddress = member.address_line_1 + ", "
         if member.address_line_2 is not None:
             fullAddress += member.address_line_2 + " "
         fullAddress += member.city + " " + member.state + " " + member.zip
@@ -113,11 +119,10 @@ def seed():
         passfile.description = 'Phipps Conservatory membership pass for {}'.format(member.full_name)
         passfile.serialNumber = str(aPass.id)
         passfile.barcode = Barcode(message=str(member.id))
-        # TODO: Add locations
-        # passfile.locations = Pass.Lff
-        passfile.foregroundColor='rgb(255, 255, 255)'
-        passfile.backgroundColor='rgb(121, 161, 56)'
-        passfile.labelColor='rgb(255, 255, 255)'
+        passfile.locations = Location(latitude=40.4392, longitude=-79.9474)
+        passfile.foregroundColor = 'rgb(255, 255, 255)'
+        passfile.backgroundColor = 'rgb(121, 161, 56)'
+        passfile.labelColor = 'rgb(255, 255, 255)'
 
         # Icon and Logo needed for pass to be successfully created
         passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))

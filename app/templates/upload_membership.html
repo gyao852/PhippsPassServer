@@ -310,9 +310,8 @@
                         <h6 class="m-0 font-weight-bold text-primary">Upload Membership Data</h6>
                     </div>
                     <div class="card-body">
-                        <form action="/upload_membership" method="POST">
-                            <input type="file" class="btn btn-info">
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <form method=post enctype=multipart/form-data>
+                            <input type="file" class="btn btn-info" name=file>
                             <input type="submit" class="btn btn-primary" value="Upload">
                         </form>
                     </div>

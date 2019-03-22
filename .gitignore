@@ -2,6 +2,7 @@
 app/certificates/*
 app/migrations/*
 Dockerfile
+app/pkpass files/*
 Archive.zip
 .idea
 .ebignore
