@@ -83,7 +83,7 @@ Fig 1.1: Interaction between client and server
 <img src="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Art/client_server_interaction_2x.png" width="500" />
     
 *More specific details regarding interactions from client to server can
-    be found [here](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Updating.html#//apple_ref/doc/uid/TP40012195-CH5-SW1), and AppleKit REST protocols can be found [here].(https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html)
+    be found [here](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Updating.html#//apple_ref/doc/uid/TP40012195-CH5-SW1), and AppleKit REST protocols can be found [here](https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html).
 ## Getting Started
 
 ### Prerequisites
@@ -123,7 +123,7 @@ Each type of *pass* (ie. general, gift) will need to have a unique type identifi
 3. Under 'Identifiers', click 'Pass Type ID'
 4. Add a new identifier with the + symbol
 5. Provide the identifier with a description, and the identifier name
-    5a. An example of the identifier would be: pass.org.conservatory.phipps
+6. An example of the identifier would be: *pass.org.conservatory.phipps*
     
 Every Apple project typically has an associated App ID. It is likely that you already have a default one associated with your Apple account, but if not:
 1. Log into https://developer.apple.com
@@ -131,7 +131,7 @@ Every Apple project typically has an associated App ID. It is likely that you al
 3. Under 'Identifiers', click 'App ID's'
 4. Add a new App ID with the + symbol
 5. Provide the ID with a description, and an explicit App ID name
-    5a. An example of the identifier would be: *com.phipps* (it will be appended with your Apple Account's App ID Prefix).
+6. An example of the identifier would be: *com.phipps* (it will be appended with your Apple Account's App ID Prefix).
 
 Another important facet for this service to run successfully is to provide valid PEM certificates in the /app/certificate directory. The below steps are for creating the 'Pass Type ID', and 'Apple Push Services' certificates:
 1. Log into https://developer.apple.com
@@ -139,15 +139,47 @@ Another important facet for this service to run successfully is to provide valid
 3. Add a new certificate with the + symbol
 4. Click on either 'Pass Type ID' or 'Apple Push Notification service SSL (Sandbox & Production)' options
 5. If you selected 'Pass Type ID', choose the previous Pass Type ID. If you selected 'Apple Push Notification service SSL (Sandbox & Production)', choose an existing App ID
-6. After clicking 'Continue', you will be brought to a page that asks you to provide a Certificate Signing Request (CSR) from your Mac. Follow the screen instructions before clicking on 'Continue'
-6a.
+6. After clicking 'Continue', you will be brought to a page that asks you to provide a Certificate Signing Request (CSR) from your Mac. Follow the screen instructions before clicking on 'Continue'.
+7. Upload your recently created .certSigningRequest file and click 'Continue'
+8. Now, you will be presented with the option to download your certificate as a pass.cer. Click on the "Download" button, and select a location.
+9. In the location where you downloaded your certificate, double click on the file in Finder for it to be added to KeyChain Access. Find the recently added certicate under the 'Login' Keychain, 'Certificate' Category. Under File, click on export items and provide a location, and file name(ie.Certificates). Make sure the file type is Personal information Exchange (.p12), and click on 'Save'. You should also be prompted with providing a password; this will be the above environmental variable PEM_PASSWORD
+10. In terminal, go to the directory of where this newly created .p12 file was generated, and type the commands:
+    ```bash
+    $ openssl pkcs12 -in "Certificates.p12" -clcerts -nokeys -out certificate.pem
+    $ openssl pkcs12 -in "Certificates.p12" -nocerts -out key.pem
+    ```
+     to create the end .pem certificate files for signing a digital *pass*.
+11. There is an additional certificate that is needed for signing, called the  Apple World Developer Intermediate Certificate or WWDRCA. Click [here](http://developer.apple.com/certificationauthority/AppleWWDRCA.cer) to download the WWDR.cer file, and similar to step 9, you will need to add this to your Keychain Access. However, you will not need to add a password to this file. Thus can click on File -> Export items and export as a .pem file directly. 
 
 #### Running locally without Docker
-TODO
+If you would like to just run the server locally for development (assuming the above environmental variables are all set in the current session), below is the short list of commands
+
+Initialize the database schema
+```bash
+$ python manage.py db init
+$ python manage.py db migrate
+$ python manage.py db upgrade
+$ python manage.py seed
+```
+
+Start the server
+```bash
+$ flask run
+```
+
 #### Running locally with Docker
-TODO
+If you would like to create a Docker Image of this project, simply run the below command
+1. Make sure Docker is [installed](https://www.docker.com/get-started) and running
+2. Fill out DockerFile TEMPLATE, and then rename the file as DockerFile
+3. Run the below command
+
+```bash
+$ docker build -t phipps-passes .
+```
+
 #### Deployment via AWS Beanstalk
-With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment. Note: the domain phippsconservatory.xyz is used in the following examples, and is necesssary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
+With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment. Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
+
 TODO
 
 
@@ -178,7 +210,6 @@ Run Docker Image locally:
 
 This requires Docker installed on the local machine, as well as being in the main outside directory (not in /apps) to work:
 ```bash
-$ docker build -t phipps-passes .
 $ docker run -p 80:80 -v /<path>/<to>/<repo>/Phipps API server/app/:/app/ --name flask1
  phipps-passes
 ```
@@ -200,7 +231,7 @@ $ DROP SCHEMA public CASCADE;
 $ CREATE SCHEMA public;
 ```
 
-## Future work
+## Future Work and Notes
 There is still a wide list of items that this project would need to get closer towards final deployment. While most of the grunt work has been done, primarily the backend interaction with the frontend and client, there are still components that need to be implemented for both the front and backend. These are listed in order of importance:
 1. A proper login service - Because this project is currently used as a proof of concept, there is no security measure in place for it's usage. A new User model will need to be added in the backend database, and flask session/reroutes would be needed
 2. Asynchronous task for data processing - This can be achieved either by using Threading, or by using something like Redis to have a queue of tasks to operate on
@@ -208,8 +239,10 @@ There is still a wide list of items that this project would need to get closer t
 4. Handling errors gracefully - As of now, there are only a few error handles that I created (ex. if no .csv file is selected when uploading). Ideally, there should be more to cover all cases. 
 5. If you are using nginx as the reverse proxy, make sure to edit the *nginx.conf* file to increase the size of the default limit to at least 10 megabytes with the line:
     ```bash
-    client_max_body_size 100m;
+    client_max_body_size 10m;
     ```
+6. If you are running this project locally, you will have to currently manually delete all contents within the /pkpass folder, in order to prevent any unforseen potential conflicts
+7. After each testing phase, you should make sure to clear the database. If you decide to just DROP the tables and schema, make sure to delete the /migration folder, and then re-run the database migration commands above.
 
 ## Built With
 * [Docker](https://www.docker.com/) - Used to easily create a containerized image of entire project, to be deployed onto any virtual machine or locally
