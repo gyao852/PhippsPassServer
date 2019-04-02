@@ -159,6 +159,7 @@
             <!-- End of Topbar -->
 
             <!-- Begin Page Content -->
+            <div id="successAlert" class="alert alert-success" role="alert" style="display:none;"></div>
             <div class="container-fluid">
 
                 <!-- Page Heading -->
@@ -186,6 +187,7 @@
                             <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                                 <thead>
                                 <tr>
+                                    <th>Select</th>
                                     <th>Membership ID</th>
                                     <th>Full Name</th>
                                     <th>Member Level</th>
@@ -199,6 +201,7 @@
                                 <tbody>
                                 {% for member,pass,device in data %}
                                     <tr>
+                                        <td><input type=checkbox name=send_mail"></td>
                                         <td>{{ member.id }}</td>
                                         <td>{{ member.full_name }}</td>
                                         <td>{{ member.member_level }}</td>
@@ -216,7 +219,7 @@
                                         {% endif %}
                                         <td><a class='mailButton' data-email="{{ member.email }}"
                                                data-full_name="{{ member.full_name }}"
-                                               data-auth="{{ pass.authenticationToken }}">
+                                               data-auth="{{ pass.authenticationToken }} data-last_sent="{{ pass.last_sent }}>
                                             <button class='btn btn-default'>Send Pass</button>
                                         </a></td>
                                     </tr>
@@ -224,6 +227,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <button id="send-multiple-passes" type="button">Send Multiple Passes</button>
                     </div>
                 </div>
 
@@ -290,7 +294,7 @@
 <script src="../static/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
 <!-- Page level custom scripts -->
-<script src="../static/js/demo/datatables-demo.js"></script>
+<script src="../static/js/demo/send_pass.js"></script>
 
 
 </body>

@@ -14,7 +14,12 @@ import json
 from datetime import datetime
 import shutil
 import pandas as pd
+from pytz import timezone
 import csv
+
+# from queue import Queue
+# import threading
+
 
 app = Flask(__name__)
 app.config.from_object(os.environ['APP_SETTINGS'])
@@ -87,8 +92,7 @@ def upload_membership():
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
-            flash('File not found')
-            return redirect(request.url)
+            return jsonify({'count': 0})
         file = request.files['file']
         # if user does not select file, browser also
         # submit an empty part without filename
@@ -102,14 +106,16 @@ def upload_membership():
             # filename is current file being uploaded name
             # find_differnce creates a update.csv, the difference
             # between the two files.
+            count = 0
             if find_difference(filename):
-                insertUpdate()
+                count = insertUpdate()
                 os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
             else:
+                return jsonify({'count': 0})
                 logging.debug("Difference wasn't properly calculated!")
-        # os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        flash('Successfully uploaded')
-        return render_template('upload_membership.html')
+        # return render_template('upload_membership.html')
+        return jsonify({'count': count})
+    # return jsonify({'error': 0})
     return render_template('upload_membership.html')
 
 
@@ -131,24 +137,23 @@ def send_mail():
     authtok = request.values.get('authtok', None)
     msg = Message("Digital Membership Card | Phipps Conservatory and Botanical Gardens",
                   sender="georgeY852@gmail.com",
-                  recipients=[recipient_email])
+                  recipients=["georgeY852@gmail.com"]) # recipient_email
     msg.html = '''
         Dear {},<br><br>
-        Phipps Conservatory is continuously following it's
+        Phipps Conservatory is continuing it's
         mission of reducing our carbon footprint. One of our new initiatives
         is providing members with their membership cards available digitally within your phone. Attached to this
-        email is your membership card that can be saved and loaded onto your device. Instructions are as follows<br><br>
+        email is your membership card that can be saved and loaded onto your devices.<br><br>
         For Apple devices:
         <ul>
             <li> If you're opening this email on your iPhone, simply double tap on the attached .pkpass file, and it 
             should prompt you to add your new membership pass to the 'Wallet' Application (available by default on all
-            iPhone devices). On the top right, tap on 'Add' to finish this process.<br>
+            iPhone devices). On the top right, tap on 'Add'.<br>
             <li> If you're on your MacBook, you can also double click on the attached file for it to be added to all
              your Apple devices.
             <br>
             NOTE: This will only work if you've connected your iPhone and MacBook with the same iCloud. If not, you can
-             download your .pkpass file, and 'Airdrop' it to your Apple device. Your phone will then automatically add 
-             it to Apple Wallet.
+             download your .pkpass file, and 'Airdrop' it to your iPhone.
         </ul>
         For Android phones:<br>
         <ul>
@@ -162,7 +167,7 @@ def send_mail():
             <li> If you have an iPhone, but not a MacBook, you will have to first need to have iTunes installed on your computer.
             This is needed in order to safely transfer files between your computer to your iphone safely. 
             <br>
-            <li> Download the .pkpass file attached to this e-mail to your computer. 
+            <li> Download the .pkpass file attached onto your computer. 
             <br>
             <li> Connect your iPhone to your computer via the provided charging cable. This should automatically open up
             iTunes; if not, open iTunes.
@@ -170,14 +175,13 @@ def send_mail():
             <li> In iTunes click on the 'Device' button, then click on 'File Sharing' in the sidebar. You should be able to 
             see a list of applications that can transfer files from your computer to your phone. Click on one, and
             then find the .pkpass file in your downloads folder. Finally click on 'Sync' to transfer the .pkpass file to your
-            iPhone. It should then automatically be added to your iPhone device at the next load.
+            iPhone.
             <br>
         </ul>
         
-        Your current paper membership card will still be valid for use here at Phipps. This digital membership pass is available for 
-        use even when your device is not connected to the Internet, and thus can be used at anytime. Any updates to your membership
-        will be reflected on the next business day; these updates will automatically be pushed to your device the next time it is
-        connected to the Internet. <br>
+        This digital membership pass is available for use even when your device is not connected to the Internet, 
+        and thus can be used at anytime after saving to your phone. Updates to your membership will be reflected on the next business day,
+         and will require access to the Internet. <br>
         We hope to see you visit again soon!<br><br>
         Mike Cassidy<br>
         Membership Administrator<br>
@@ -197,10 +201,15 @@ def send_mail():
         msg.attach("{}".format(filename), "pkpass files/{}".format(filename), fp.read())
     mail.send(msg)
     aPass = Card.query.filter_by(authenticationToken=authtok).first()
-    aPass.last_sent = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    db.session.add(aPass)
-    db.session.commit()
-    return recipient_email
+
+    if aPass is not None:
+        aPass.last_sent = datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S")
+        db.session.add(aPass)
+        db.session.commit()
+        return jsonify({'Status': 'Success'})
+    else:
+        return jsonify({'Status': 'Fail'})
+
 
 
 # Registering Device to Receive Push Notifications for future updates for a pass
@@ -222,9 +231,10 @@ def register_device(version, deviceLibraryIdentifier, passTypeIdentifier, serial
         # then register device
         if db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)
                                            & (Device.push_token == request.values.get('pushToken'))).first() is None:
-            newDevice = Device(date_registered=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                               device_lib_id=deviceLibraryIdentifier,
-                               push_token=request.get_json().get('pushToken'))
+            newDevice = Device(
+                date_registered=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"),
+                device_lib_id=deviceLibraryIdentifier,
+                push_token=request.get_json().get('pushToken'))
             aPass.devices.append(newDevice)
             db.session.add(aPass)
             db.session.commit()
@@ -266,7 +276,8 @@ def get_serial(version, deviceLibraryIdentifier, passTypeIdentifier):
         for aRegistration in registrations:
             serialNumbers.append(aRegistration.pass_id)
         logging.debug("Sending list of passes device is registered for")
-        return json.dumps({'lastUpdated': datetime.datetime.now(), 'serialNumbers': serialNumbers}), \
+        return json.dumps(
+            {'lastUpdated': datetime.datetime.now().astimezone(timezone('EST5EDT')), 'serialNumbers': serialNumbers}), \
                200, {'ContentType': 'application/json'}
     else:
         logging.debug("No registrations found! Should at least be one.")
@@ -296,7 +307,7 @@ def unregister_device(version, deviceLibraryIdentifier, passTypeIdentifier, seri
     if (version != 'v1') or (passTypeIdentifier != 'pass.org.conservatory.phipps.membership'):
         return not_authorized("Version and Pass Type invalid")
     device = db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)).get(1)
-    # TODO: Properly delete
+    # TODO: Test this
     cards_device = db.session.query(Card, Device).join(registration).filter(
         Device.device_lib_id == deviceLibraryIdentifier)
 
@@ -356,7 +367,9 @@ def insertUpdate():
     df.columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
                   "address_1", "address_2", "city", "state", "zip", "email", "notes", "quantity", "quantity_active",
                   "queryid"]
+    diff_count = 0
     for row in df.itertuples():
+        diff_count += 1
         existing_mem = Member.query.filter_by(id=row.id).first()
         state = False
         exp_date = None
@@ -364,7 +377,7 @@ def insertUpdate():
         if row.status == 'Active':
             state = True
         if pd.isna(row.expiration_date) is False:
-            exp_date = datetime.strptime(row.expiration_date, '%m/%d/%Y')
+            exp_date = datetime.strptime(row.expiration_date, '%m/%d/%Y').astimezone(timezone('EST5EDT'))
         if pd.isna(row.address_2):
             add_2 = None
         if existing_mem is None:
@@ -377,7 +390,7 @@ def insertUpdate():
             if exp_date is not None:
                 new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
                                 file_name=row.first_name + row.last_name + ".pkpass",
-                                last_sent=None, last_updated=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+                                last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
                 new_member.cards.append(new_pass)
             db.session.add(new_member)
             db.session.commit()
@@ -401,7 +414,7 @@ def insertUpdate():
                 create_member_pass(row.id, row.first_name + row.last_name + ".pkpass")
                 card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
                     member_card_association.c.member_id == row.id).first()[1]
-                card.last_updated = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                card.last_updated = datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S")
                 db.session.commit()
                 registrations = Device.query.join(registration).join(Card). \
                     filter(registration.c.card_id == card.id).all()
@@ -425,6 +438,7 @@ def insertUpdate():
                     #  remove that device and its registrations from your server.
                     client.close()
                     db.session.commit()
+    return diff_count
 
                     # Checks to make sure file is of csv type
 
@@ -449,21 +463,25 @@ def find_difference(newcsv):
         columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
                    "address_1", "address_2", "city", "state", "zip", "email", "notes", "quantity", "quantity_active",
                    "queryid"]
-        with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
-                os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
-            fileone = t1.readlines()
-            filetwo = t2.readlines()
 
-        with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as outFile:
-            writer = csv.writer(outFile)
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as od, open(
+                os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as nd, open(
+            os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as diff:
+            oldData = set(od)
+            writer = csv.writer(diff)
             writer.writerow(columns)
-            for line in filetwo:
-                if line not in fileone:
-                    outFile.write(line)
+            # diff.write(columns)
+            for line in nd:
+                if line not in oldData:
+                    writer.writerow(line)
+            # od.readlines()
+            # newData = nd.readlines()
+            # writer = csv.writer(outFile)
+            # writer.writerow(columns)
 
-        t1.close()
-        t2.close()
-        outFile.close()
+        od.close()
+        nd.close()
+        diff.close()
         if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
             os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
         os.rename(os.path.join(app.config['UPLOAD_FOLDER'], newcsv),
@@ -500,6 +518,8 @@ def create_member_pass(id, filename):
     fullAddress += member.city + " " + member.state + " " + str(member.zip)
     cardInfo.addAuxiliaryField('address', fullAddress, 'Address Line 1')
     cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
+    # if member.additional_child is not None:
+    # cardInfo.addBackField('addons', member.additiona_child, 'Add-ons')
     cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
                           'Hours')
     cardInfo.addBackField('member-info', '(412)-315-0656\nmembers@phipps.conservatory.org', 'Member Info')
@@ -534,3 +554,8 @@ def create_member_pass(id, filename):
                     os.environ['PEM_PASSWORD'],
                     os.path.join(app.config['PASS_FOLDER'], member.full_name.replace(" ", "") + ".pkpass"))
     return True
+
+# # configure multithreading
+# thread = threading.Thread(target=upload_membership, name='TrainingDaemon')
+# thread.setDaemon(False)
+# thread.start()
