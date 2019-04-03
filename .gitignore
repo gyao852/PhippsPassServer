@@ -1,4 +1,5 @@
 *.zip
+app/sample data/*
 app/certificates/*
 app/migrations/*
 Dockerfile
