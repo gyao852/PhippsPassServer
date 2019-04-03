@@ -16,8 +16,6 @@ import shutil
 import pandas as pd
 from pytz import timezone
 import csv
-
-# from queue import Queue
 # import threading
 
 
@@ -137,7 +135,7 @@ def send_mail():
     authtok = request.values.get('authtok', None)
     msg = Message("Digital Membership Card | Phipps Conservatory and Botanical Gardens",
                   sender="georgeY852@gmail.com",
-                  recipients=["georgeY852@gmail.com"]) # recipient_email
+                  recipients=["georgeY852@gmail.com"])  # recipient_email
     msg.html = '''
         Dear {},<br><br>
         Phipps Conservatory is continuing it's
@@ -210,6 +208,19 @@ def send_mail():
     else:
         return jsonify({'Status': 'Fail'})
 
+
+# GET phippsconservatory.xyz/reset_database
+@app.route("/reset_database", methods=['POST'])
+def reset_db():
+    meta = db.metadata
+    try:
+        for table in reversed(meta.sorted_tables):
+            logging.debug('Clear table %s' % table)
+            db.session.execute(table.delete())
+        db.session.commit()
+        return jsonify({"Status": "success"})
+    except:
+        return jsonify({"Status": "fail"})
 
 
 # Registering Device to Receive Push Notifications for future updates for a pass
@@ -365,8 +376,7 @@ def insertUpdate():
     update_file = os.path.join(app.config['UPLOAD_FOLDER'], "update.csv")
     df = pd.read_csv(update_file)
     df.columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
-                  "address_1", "address_2", "city", "state", "zip", "email", "notes", "quantity", "quantity_active",
-                  "queryid"]
+                  "address_1", "address_2", "city", "state", "zip", "email", "add_ons", "quantity"]
     diff_count = 0
     for row in df.itertuples():
         diff_count += 1
@@ -386,11 +396,13 @@ def insertUpdate():
                                 full_name=row.first_name + " " + row.last_name,
                                 associated_members=row.associates, address_line_1=row.address_1,
                                 address_line_2=add_2,
-                                city=row.city, state=row.state, zip=row.zip, email=row.email)
+                                city=row.city, state=row.state, zip=row.zip, email=row.email, add_on_name=row.add_ons,
+                                add_on_value=row.quantity)
             if exp_date is not None:
                 new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
                                 file_name=row.first_name + row.last_name + ".pkpass",
-                                last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                                last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
+                        "%Y-%m-%dT%H:%M:%S"))
                 new_member.cards.append(new_pass)
             db.session.add(new_member)
             db.session.commit()
@@ -440,7 +452,7 @@ def insertUpdate():
                     db.session.commit()
     return diff_count
 
-                    # Checks to make sure file is of csv type
+    # Checks to make sure file is of csv type
 
 
 def allowed_file(filename):

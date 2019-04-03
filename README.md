@@ -13,11 +13,13 @@
 ## Introduction
 This independent project that was done in collaboration with Professor Heimann and Professor Moussawi from the Carnegie
 Mellon University Information Systems Department. Along with Mr. Cassidy from the Phipps Conservatory & Botanical Garden in Pittsburgh. 
-Phipps Conservatory has already won numerous awards and honors regarding
+
+Phipps Conservatory has won numerous awards and honors regarding
 [green sustainability](https://www.phipps.conservatory.org/green-innovation/at-phipps/center-for-sustainable-landscapes-greenest-building-museum-garden-in-the-world).
 Their mission is to to "*advance sustainability and promote human and environmental well-being through action and research*".
 To help continue their mission, this independent project's goal is to create a relatively automated way of generating and updating *passes*, which
 can be opened on digital devices for both Apple and Android (Apple comes with a pre-installed wallet that can automatically add and open passes, and the Google Play Market has an comparable [app](https://play.google.com/store/apps/details?id=io.walletpasses.android&hl=en). This is achieved through a rest API service that follows Apple's PassKit Web Service [specification](https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html).
+
 For this particular project, at its current state, all passes are created specifically as digital membership cards. Further applications can be available in the future, and are discussed more below.
 
 ## Features
@@ -45,38 +47,38 @@ A digital card for mobile devices is referred to as a *pass*. A *pass* itself is
 This REST api service allows for the **C**reaating, **R**etrieving, **U**pdating of membership records, and their associated pass records (in this current developmental phase, old membership records are simply kept). Data in the database relies on regular intervals of membership data uploaded (as a .csv file). The expected workflow would be:
 1. A Phipps Conservatory employee logs onto the site
 2. They attach a scanner to their work computer, and place the cursor focus into the Altru System
-3. The employee can send a pass to a user via the site. This email will contain the pass itself, as well as instructions on how to add to add to their device.
-4. A member can install the pass onto their device if they haven't already. If there has been an update to their membership record, their details will be reflected in real time.
-5. When arriving at Phipps, the member can open their digital *pass*, and the employee can scan the barcode on the *pass*.
-members.
+3. The employee can send a pass to a user via the site. This email will contain the pass itself, as well as instructions on how to add to add to their device
+4. A member can install the pass onto their device if they haven't already. If there has been an update to their membership record, their details will be reflected in real time
+5. When arriving at Phipps, the member can open their digital *pass*, and the employee can scan the barcode on the *pass*
 6. The scanned data will auto-populate their existing registering system. 
 7. At some regular interval, an employee will download need to download the latest membership data, and upload this to the website to update
-the membership records within the server (which automatically starts the process of creating new *passes* for new members, and updating existing existing ones).
+the membership records within the server (which automatically starts the process of creating new *passes* for new members, and updating existing existing ones)
 
 ### Front-End
 TODO: Add pictures for two main functions here
 
 Currently, the front-end component consists of two main features: Sending initial passes to users, and
 uploading a csv file containing membership data (to create/update membership and pass records). Because this is still in developmental phase, additional views are available on the left hand side (such as tables showing the data for members, *pass* data and device data). These additional views should be removed if deployed in production for obvious privacy reasons. They are currently kept for convenience sake in development. Additionally, there is another feature that allows for data to be cleared. Again, this is for development testing purposes and should be removed in end production. At it's current state, this project does not have a login page, and should be one of the higher priorities for future development.
+
 ### Back-End
 TODO: Add images from /docs here
 
 There are various components that are in play in the backend, and this section will try to cover in detail each major section:
 1. Data Upload
-    * Stale data will be a recurrence until new data is uploaded. Any files uploaded will first be checked to see if it is of csv file type, and will be automatically reject if not.
-    * When a new csv data containing membership records is uploaded, it will first check to see if any prior data exists. If not, this first membership data will act as our initial dataset, and will populate the database accordingly.
-    * If there has been an upload prior to this, a comparison of the data will trigger. It will iterate the new data, line by line, checking to see if that record exists in the old (using set comparison for faster processing). After collecting all membership record differences, each record is then checked to see if there is an existing membership record based on the primary key (member_id).
-        * For each existing member, the rest of their details are updated. A new *pass* record is created. Based on the member's *pass* primary key (card_id), we check to see if there are any registered devices for this pass. Any registered devices are then sent a push notification of a change. The user's device will then retrieve a list of changed *passes* (a device can have multiple *passes*). It will then send a request for each change *pass*, and replace the old *pass* with the new.
-        * For each new member, a new membership record and *pass* record is simply created.
-        * Each member's pass is stored on the local machine. In terms of space complexity, each .pkpass file is only a few megabytes total, and will take up at most a few gigabytes. Local storage is the current means of the server being able to find and send the correct *pass*. Future storage is discussed further below.
+    * Stale data will be a recurrence until new data is uploaded. Any files uploaded will first be checked to see if it is of csv file type, and will be automatically reject if not
+    * When a new csv data containing membership records is uploaded, it will first check to see if any prior data exists. If not, this first membership data will act as our initial dataset, and will populate the database accordingly
+    * If there has been an upload prior to this, a comparison of the data will trigger. It will iterate the new data, line by line, checking to see if that record exists in the old (using set comparison for faster processing). After collecting all membership record differences, each record is then checked to see if there is an existing membership record based on the primary key (member_id)
+        * For each existing member, the rest of their details are updated. A new *pass* record is created. Based on the member's *pass* primary key (card_id), we check to see if there are any registered devices for this pass. Any registered devices are then sent a push notification of a change. The user's device will then retrieve a list of changed *passes* (a device can have multiple *passes*). It will then send a request for each change *pass*, and replace the old *pass* with the new
+        * For each new member, a new membership record and *pass* record is simply created
+        * Each member's pass is stored on the local machine. In terms of space complexity, each .pkpass file is only a few megabytes total, and will take up at most a few gigabytes. Local storage is the current means of the server being able to find and send the correct *pass*. Future storage is discussed further below
     
 2. Sending a Pass
-    * Passes are sent to a member based on their associated e-mail address with that membership record.
-    * After clicking the 'Send Pass' button, that card record's last_sent field will be updated.
-    * The message is currently hard-coded in, as the contents of the body contain static instructions on opening the passes across a variety of devices (for which it does not appear to change often).
+    * Passes are sent to a member based on their associated e-mail address with that membership record
+    * After clicking the 'Send Pass' button, that card record's last_sent field will be updated
+    * The message is currently hard-coded in, as the contents of the body contain static instructions on opening the passes across a variety of devices (for which it does not appear to change often)
     * Passes are attached to the e-mail as a .pkpass file.
         * Adding to a smartphone will also register the device, with the server receiving a unique push_token that, alongside other authentication metrics, will be used to send updates in real-time
-    * After a member has added the *pass* to their phone, it will update the associated card record's last_update field, to help indicate for the user that this *pass* has been added by the end-client.
+    * After a member has added the *pass* to their phone, it will update the associated card record's last_update field, to help indicate for the user that this *pass* has been added by the end-client
     
 Fig 1.1: Interaction between client and server
 
@@ -88,9 +90,9 @@ Fig 1.1: Interaction between client and server
 
 ### Prerequisites
 * Apple Developer Account
-* PEM files in /app/certificate
 * Python 3.6.4
 * Pip
+* virtualenv
 * Docker
 * AWS Account (used in following examples, depends on deployment)
 
@@ -117,7 +119,8 @@ work:
 Please keep in mind that for local testing, this needs to be set up for each Terminal session. The Dockerfile template will need to be set in order for the Image to run successfully locally.
 
 #### Certificates
-Each type of *pass* (ie. general, gift) will need to have a unique type identifier. The below steps are for creating a valid Pass Type ID To proceed further, you **will** need to have an Apple Developer Account (not the free version, but the annual subscription service). 
+Each type of *pass* (ie. general, gift) will need to have a unique type identifier. The below steps are for creating a valid Pass Type ID To proceed further, you **will** need to have an Apple Developer Account (not the free version, but the annual subscription service).
+
 1. Log into https://developer.apple.com
 2. Click the 'Certificates, IDs, & Profiles' tab
 3. Under 'Identifiers', click 'Pass Type ID'
@@ -126,12 +129,13 @@ Each type of *pass* (ie. general, gift) will need to have a unique type identifi
 6. An example of the identifier would be: *pass.org.conservatory.phipps*
     
 Every Apple project typically has an associated App ID. It is likely that you already have a default one associated with your Apple account, but if not:
+
 1. Log into https://developer.apple.com
 2. Click the 'Certificates, IDs, & Profiles' tab
 3. Under 'Identifiers', click 'App ID's'
 4. Add a new App ID with the + symbol
 5. Provide the ID with a description, and an explicit App ID name
-6. An example of the identifier would be: *com.phipps* (it will be appended with your Apple Account's App ID Prefix).
+6. An example of the identifier would be: *com.phipps* (it will be appended with your Apple Account's App ID Prefix)
 
 Another important facet for this service to run successfully is to provide valid PEM certificates in the /app/certificate directory. The below steps are for creating the 'Pass Type ID', and 'Apple Push Services' certificates:
 1. Log into https://developer.apple.com
@@ -139,9 +143,9 @@ Another important facet for this service to run successfully is to provide valid
 3. Add a new certificate with the + symbol
 4. Click on either 'Pass Type ID' or 'Apple Push Notification service SSL (Sandbox & Production)' options
 5. If you selected 'Pass Type ID', choose the previous Pass Type ID. If you selected 'Apple Push Notification service SSL (Sandbox & Production)', choose an existing App ID
-6. After clicking 'Continue', you will be brought to a page that asks you to provide a Certificate Signing Request (CSR) from your Mac. Follow the screen instructions before clicking on 'Continue'.
+6. After clicking 'Continue', you will be brought to a page that asks you to provide a Certificate Signing Request (CSR) from your Mac. Follow the screen instructions before clicking on 'Continue'
 7. Upload your recently created .certSigningRequest file and click 'Continue'
-8. Now, you will be presented with the option to download your certificate as a pass.cer. Click on the "Download" button, and select a location.
+8. Now, you will be presented with the option to download your certificate as a pass.cer. Click on the "Download" button, and select a location
 9. In the location where you downloaded your certificate, double click on the file in Finder for it to be added to KeyChain Access. Find the recently added certicate under the 'Login' Keychain, 'Certificate' Category. Under File, click on export items and provide a location, and file name(ie.Certificates). Make sure the file type is Personal information Exchange (.p12), and click on 'Save'. You should also be prompted with providing a password; this will be the above environmental variable PEM_PASSWORD
 10. In terminal, go to the directory of where this newly created .p12 file was generated, and type the commands:
     ```bash
@@ -149,7 +153,7 @@ Another important facet for this service to run successfully is to provide valid
     $ openssl pkcs12 -in "Certificates.p12" -nocerts -out key.pem
     ```
      to create the end .pem certificate files for signing a digital *pass*.
-11. There is an additional certificate that is needed for signing, called the  Apple World Developer Intermediate Certificate or WWDRCA. Click [here](http://developer.apple.com/certificationauthority/AppleWWDRCA.cer) to download the WWDR.cer file, and similar to step 9, you will need to add this to your Keychain Access. However, you will not need to add a password to this file. Thus can click on File -> Export items and export as a .pem file directly. 
+11. There is an additional certificate that is needed for signing, called the  Apple World Developer Intermediate Certificate or WWDRCA. Click [here](http://developer.apple.com/certificationauthority/AppleWWDRCA.cer) to download the WWDR.cer file, and similar to step 9, you will need to add this to your Keychain Access. However, you will not need to add a password to this file. Thus can click on File -> Export items and export as a .pem file directly 
 
 #### Running locally without Docker
 If you would like to just run the server locally for development (assuming the above environmental variables are all set in the current session), below is the short list of commands
@@ -164,10 +168,13 @@ $ python manage.py seed
 
 Start the server
 ```bash
+$ source env/bin/activate
+$ pip install -r requirements.txt
+$ cd app/
 $ flask run
 ```
 
-#### Running locally with Docker
+#### Creating a Docker Image
 If you would like to create a Docker Image of this project, simply run the below command
 1. Make sure Docker is [installed](https://www.docker.com/get-started) and running
 2. Fill out DockerFile TEMPLATE, and then rename the file as DockerFile
@@ -177,10 +184,30 @@ If you would like to create a Docker Image of this project, simply run the below
 $ docker build -t phipps-passes .
 ```
 
-#### Deployment via AWS Beanstalk
-With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment. Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
+#### Deployment via AWS Beanstalk & AWS RDS
+TODO: Add images
+With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment via AWS Beanstalk, and AWS RDS. 
 
-TODO
+Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
+
+Setting up Remote Database with Relational Database Service
+1. Log into AWS, and select RDS
+2. Click on 'Create database'
+3. Any of the engine options should work, but for current development PostgreSQL has been used
+4. Make sure to check the bottom option 'Only enable options eligible for RDS Free Usage Tier' to ensure you are using only free-tier option
+5. If you selected PostgreSQL in the last step, for consistency sake select an engine version above 10.x+. Provide a 'DB instance identifier', 'Master username" and 'Master password'. Please make sure to save these values somewhere accessible for future use
+6. Assuming Postgres was used as the engine, the end DATABASE_URL would be in this format: postgresql://<Master_username>:<master_password>@<endpoint> where endpoint will be available after creation (may take a few minutes)
+
+
+Setting up Elastic Bean Stalk Environment
+1. Log into AWS, and select Elastic Bean Stalk
+2. In the top right hand side, click on Create New Application and give it a name and description
+3. For this new application, start by creating a new environment by choosing choose Web Server Environment
+4. You will asked to give a name, and sub-domain under elasticbeanstalk.com. 
+5 Under Base Configuration, choose preconfigured system and add choose Docker as your platform
+6. Before clicking on ‘Create environment’, upload a ZIP of the following contents: Dockerfile (renamed from Dockerfile TEMPLATE), requirements.txt, and /app folder
+7. Click on 'Create Environment', and the server and a vm should spin for hosting the service. By default, it should use the free-tier micro instance machines
+
 
 
 #### Miscellaneous Commands
@@ -236,13 +263,13 @@ There is still a wide list of items that this project would need to get closer t
 1. A proper login service - Because this project is currently used as a proof of concept, there is no security measure in place for it's usage. A new User model will need to be added in the backend database, and flask session/reroutes would be needed
 2. Asynchronous task for data processing - This can be achieved either by using Threading, or by using something like Redis to have a queue of tasks to operate on
 3. Reworked front-end design - I currently am using an open-source front end dashboard. It would be ideal if this was entirely recreated from scratch (primarily just html/css as the javascript logic can be used anywhere)
-4. Handling errors gracefully - As of now, there are only a few error handles that I created (ex. if no .csv file is selected when uploading). Ideally, there should be more to cover all cases. 
+4. Handling errors gracefully - As of now, there are only a few error handles that I created (ex. if no .csv file is selected when uploading). Ideally, there should be more to cover all cases
 5. If you are using nginx as the reverse proxy, make sure to edit the *nginx.conf* file to increase the size of the default limit to at least 10 megabytes with the line:
     ```bash
     client_max_body_size 10m;
     ```
 6. If you are running this project locally, you will have to currently manually delete all contents within the /pkpass folder, in order to prevent any unforseen potential conflicts
-7. After each testing phase, you should make sure to clear the database. If you decide to just DROP the tables and schema, make sure to delete the /migration folder, and then re-run the database migration commands above.
+7. After each testing phase, you should make sure to clear the database. If you decide to just DROP the tables and schema, make sure to delete the /migration folder, and then re-run the database migration commands above
 
 ## Built With
 * [Docker](https://www.docker.com/) - Used to easily create a containerized image of entire project, to be deployed onto any virtual machine or locally
@@ -253,7 +280,8 @@ There is still a wide list of items that this project would need to get closer t
 
 
 ## Acknowledgments
-TODO
+The front-end GUI is a customized version of the open source BootStrap4 dashboard, SB Admin 2. This UI is licensed under the MIT License, and is available for free. It can be found [here](https://startbootstrap.com/themes/sb-admin-2/) for future reference.
+TODO: Finish this
 
 ## License
 

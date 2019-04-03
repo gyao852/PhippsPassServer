@@ -1,6 +1,12 @@
 from app import db
 
 
+class User(db.Model):
+    __tablename__ = "user"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100))
+    password = db.Column(db.String(100))
+
 member_card_association = db.Table('member_card_association', db.Model.metadata,
                                    db.Column('member_id', db.String(100), db.ForeignKey('member.id')),
                                    db.Column('card_id', db.Integer, db.ForeignKey('card.id')))
@@ -13,13 +19,15 @@ class Member(db.Model):
     expiration_date = db.Column(db.DateTime)
     status = db.Column(db.Boolean)
     full_name = db.Column(db.String(100), nullable=False)
-    associated_members = db.Column(db.String(100))  # May need to remove
+    associated_members = db.Column(db.String(100))
     address_line_1 = db.Column(db.String(100))
     address_line_2 = db.Column(db.String(100))
     city = db.Column(db.String(100))
     state = db.Column(db.String(100))
     zip = db.Column(db.String(100))
-    email = db.Column(db.String(100), nullable=False) # Filter before entering
+    email = db.Column(db.String(100), nullable=False)
+    add_on_name = db.Column(db.String(100))
+    add_on_value = db.Column(db.String(100))
     cards = db.relationship('Card', secondary=member_card_association)
 
 # don't know why, but association table created when added primary_key=True? even though no need for above

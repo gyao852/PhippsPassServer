@@ -23,50 +23,68 @@ def seed():
     db.create_all()
 
     member1 = Member(id='8-11111111', member_level='Student',
-                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')), status=True, full_name='George Yao',
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')),
+                     status=True, full_name='George Yao',
                      associated_members='Jason Yao', address_line_1='1063 Morewood Avenue', address_line_2=None,
-                     city='Pittsburgh', state='PA', zip='15213', email='gyao@andrew.cmu.edu')
+                     city='Pittsburgh', state='PA', zip='15213', email='gyao@andrew.cmu.edu',
+                     add_on_name="Additional Child",
+                     add_on_value="1")
     member2 = Member(id='8-10060865', member_level='Employee',
-                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')), status=True, full_name='Mike Cassidy',
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')),
+                     status=True, full_name='Mike Cassidy',
                      associated_members='Michael Cassidy, Jason Gamrath and Dale Chihuly',
                      address_line_1='6327 Waldron Street', address_line_2=None,
-                     city='Pittsburgh', state='PA', zip='15217', email='mcassidy@phipps.conservatory.org')
+                     city='Pittsburgh', state='PA', zip='15217', email='mcassidy@phipps.conservatory.org',
+                     add_on_name=None,
+                     add_on_value=None)
     member3 = Member(id='8-10060972', member_level='Employee',
                      expiration_date=datetime.strptime('1/31/2020', '%m/%d/%Y').astimezone(timezone('EST5EDT')),
                      status=True, full_name='Dara Goldhagen', associated_members='Dara Goldhagen',
                      address_line_1='6341 Glenview Place', address_line_2=None, city='Pittsburgh', state='PA',
-                     zip='15206', email='dgoldhagen@gmail.com')
+                     zip='15206', email='dgoldhagen@gmail.com', add_on_name=None,
+                     add_on_value=None)
     member4 = Member(id='8-10061037', member_level='Employee',
-                     expiration_date=datetime.strptime('12/31/2022', '%m/%d/%Y').astimezone(timezone('EST5EDT')), status=True,
+                     expiration_date=datetime.strptime('12/31/2022', '%m/%d/%Y').astimezone(timezone('EST5EDT')),
+                     status=True,
                      full_name='Monica Marchese', associated_members='Ms. Monica Marchese',
                      address_line_1='90 South 25th Street', address_line_2='Apartment 2', city='Pittsburgh', state='PA',
-                     zip='15203', email='mmarchese@phipps.conservatory.org')
+                     zip='15203', email='mmarchese@phipps.conservatory.org', add_on_name=None,
+                     add_on_value=None)
     member5 = Member(id='8-10061046', member_level='Employee',
                      expiration_date=None, status=True, full_name='Nalitz Christine',
                      associated_members=None, address_line_1='Phipps Conservatory and Botanical Gardens',
                      address_line_2='One Schenley Park',
-                     city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org')
+                     city='Pittsburgh', state='PA', zip='15213', email='cnalitz@phipps.conservatory.org',
+                     add_on_name=None,
+                     add_on_value=None)
     member6 = Member(id='8-11111112', member_level='Senior Citizen',
-                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')), status=True,
+                     expiration_date=datetime.strptime('12/31/2019', '%m/%d/%Y').astimezone(timezone('EST5EDT')),
+                     status=True,
                      full_name='Larry Heimann',
                      associated_members=None, address_line_1='5000 Forbes Ave',
                      address_line_2=None,
-                     city='Pittsburgh', state='PA', zip='15213', email='profh@cmu.edu')
+                     city='Pittsburgh', state='PA', zip='15213', email='profh@cmu.edu', add_on_name=    None,
+                     add_on_value=None)
 
     pass1 = Card(authenticationToken=hashlib.sha1(member1.id.encode('utf-8')).hexdigest(), file_name="GeorgeYao.pkpass",
-                 last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                 last_sent=None,
+                 last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
     pass2 = Card(authenticationToken=hashlib.sha1(member2.id.encode('utf-8')).hexdigest(),
                  file_name="MikeCassidy.pkpass",
-                 last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                 last_sent=None,
+                 last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
     pass3 = Card(authenticationToken=hashlib.sha1(member3.id.encode('utf-8')).hexdigest(),
                  file_name="DaraGoldhagen.pkpass",
-                 last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                 last_sent=None,
+                 last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
     pass4 = Card(authenticationToken=hashlib.sha1(member4.id.encode('utf-8')).hexdigest(),
                  file_name="MonicaMarchese.pkpass",
-                 last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                 last_sent=None,
+                 last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
     pass6 = Card(authenticationToken=hashlib.sha1(member6.id.encode('utf-8')).hexdigest(),
                  file_name="LarryHeimann.pkpass",
-                 last_sent=None, last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
+                 last_sent=None,
+                 last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S"))
 
     member1.cards.append(pass1)
     member2.cards.append(pass2)
