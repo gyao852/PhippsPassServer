@@ -20,6 +20,8 @@
     </p>
 {% endblock %}
 {% block content %}
+    <div id="successAlert" class="alert alert-success" role="alert" style="display:none;"></div>
+    <div id="errorAlert" class="alert alert-danger" role="alert" style="display:none;"></div>
     <div class="container-fluid">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
@@ -45,25 +47,25 @@
                         <tbody>
                         {% for member,pass,device in data %}
                             <tr>
-                                <td><input type=checkbox name=send_mail"></td>
-                                <td>{{ member.id }}</td>
-                                <td>{{ member.full_name }}</td>
-                                <td>{{ member.member_level }}</td>
-                                <td>{{ member.expiration_date }}</td>
-                                <td>{{ pass.last_updated }}</td>
+                                <td><input type="checkbox" name="send_mail"></td>
+                                <td name="mid">{{ member.id }}</td>
+                                <td name="mfn">{{ member.full_name }}</td>
+                                <td name="mml">{{ member.member_level }}</td>
+                                <td name="med">{{ member.expiration_date }}</td>
+                                <td name="mlu">{{ pass.last_updated }}</td>
                                 {% if device in pass.devices %}
-                                    <td>{{ device.date_registered }}</td>
+                                    <td name="dr">{{ device.date_registered }}</td>
                                 {% else %}
-                                    <td> No registered device</td>
+                                    <td name="dr"> No registered device</td>
                                 {% endif %}
                                 {% if pass.last_sent == None %}
-                                    <td> No prior e-mail sent</td>
+                                    <td name="ls"> No prior e-mail sent</td>
                                 {% else %}
-                                    <td>{{ pass.last_sent }}</td>
+                                    <td name="ls">{{ pass.last_sent }}</td>
                                 {% endif %}
                                 <td><a class='mailButton' data-email="{{ member.email }}"
                                        data-full_name="{{ member.full_name }}"
-                                       data-auth="{{ pass.authenticationToken }} data-last_sent="{{ pass.last_sent }}>
+                                       data-auth="{{ pass.authenticationToken }}" data-last_sent="{{ pass.last_sent }}">
                                     <button class='btn btn-default'>Send Pass</button>
                                 </a></td>
                             </tr>
@@ -71,7 +73,7 @@
                         </tbody>
                     </table>
                 </div>
-                <button id="send-multiple-passes" type="button">Send Multiple Passes</button>
+                <button id="send-multiple-passes" class='mailButton'> Send Multiple Passes</button>
             </div>
         </div>
     </div>

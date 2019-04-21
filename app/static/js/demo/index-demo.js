@@ -12,7 +12,7 @@ $(document).ready(function () {
                 $('#errorAlert').text("Database could not be reset. Please contact server manager.").show();
                 $('#successAlert').hide();
             } else {
-                $('#successAlert').text("Database was reset. All values have been cleared").show();
+                $('#successAlert').text("Database was reset. All values have been cleared.").show();
                 $('#errorAlert').hide();
             }
         });

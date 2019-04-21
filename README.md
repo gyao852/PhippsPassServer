@@ -155,6 +155,38 @@ Another important facet for this service to run successfully is to provide valid
      to create the end .pem certificate files for signing a digital *pass*.
 11. There is an additional certificate that is needed for signing, called the  Apple World Developer Intermediate Certificate or WWDRCA. Click [here](http://developer.apple.com/certificationauthority/AppleWWDRCA.cer) to download the WWDR.cer file, and similar to step 9, you will need to add this to your Keychain Access. However, you will not need to add a password to this file. Thus can click on File -> Export items and export as a .pem file directly 
 
+#### Setup Virtual Environment and Packages
+Typically, for a large python project it is important to keep track of which packages are needed (as it can quickly get complicated with multiple python projects, running different versions and libraries). Having a virtual environment set up helps simplify this.
+
+Clone the project
+```bash
+$ git clone git@github.com:gyao852/PhippsPassServer.git
+```
+
+Create the virtual environment 
+```bash
+$ python3 -m virtualenv env
+```
+
+Activate the environment 
+```bash
+$ source env/bin/activate
+```
+You know you have activated the environment when you see '(env)' at the start of each line within Terminal. It is recommended to activate the environment each time you continue development. 
+
+Installing packages for this project
+```bash
+$ pip install -r requirements.txt
+```
+
+Deactivate the environment 
+```bash
+$ deactivate
+```
+After development, it's important to deactivate your working environment. Alternatively, quitting the Terminal Session will also deactivate the environment.
+
+
+
 #### Running locally without Docker
 If you would like to just run the server locally for development (assuming the above environmental variables are all set in the current session), below is the short list of commands
 
@@ -277,6 +309,8 @@ There is still a wide list of items that this project would need to get closer t
 * [Flask](http://flask.pocoo.org/) - Used to build the entire server, both backend and frontend
 
 * [Git](https://git-scm.com/) - Used for version control
+
+* [wallet-py3k](https://github.com/ofw/wallet-py3k) - A useful Python library to write .pkpass files
 
 
 ## Acknowledgments
