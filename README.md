@@ -300,7 +300,15 @@ There is still a wide list of items that this project would need to get closer t
     ```bash
     client_max_body_size 10m;
     ```
-6. If you are running this project locally, you will have to currently manually delete all contents within the /pkpass folder, in order to prevent any unforseen potential conflicts
+6. Note that each pass will be looking under the [phippsconservatory.xyz](phippsconservatory.xyz) domain for updates. If you deploy this site to another domain, make sure to change App/app.py L592 from
+    ```bash
+    passfile.webServiceURL = 'https://phippsconservatory.xyz'
+    ```
+    to 
+    ```bash
+    passfile.webServiceURL = 'https:yourDomain.com'
+    ```
+    Note that also when you deploy this application to a server, it must be https as Apple only allows calls through secure protocol
 7. After each testing phase, you should make sure to clear the database. If you decide to just DROP the tables and schema, make sure to delete the /migration folder, and then re-run the database migration commands above
 
 ## Built With

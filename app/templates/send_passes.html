@@ -48,24 +48,24 @@
                         {% for member,pass,device in data %}
                             <tr>
                                 <td><input type="checkbox" name="send_mail"></td>
-                                <td name="mid">{{ member.id }}</td>
-                                <td name="mfn">{{ member.full_name }}</td>
-                                <td name="mml">{{ member.member_level }}</td>
-                                <td name="med">{{ member.expiration_date }}</td>
-                                <td name="mlu">{{ pass.last_updated }}</td>
+                                <td>{{ member.id }}</td>
+                                <td>{{ member.full_name }}</td>
+                                <td>{{ member.member_level }}</td>
+                                <td>{{ member.expiration_date }}</td>
+                                <td>{{ pass.last_updated }}</td>
                                 {% if device in pass.devices %}
-                                    <td name="dr">{{ device.date_registered }}</td>
+                                    <td>{{ device.date_registered }}</td>
                                 {% else %}
-                                    <td name="dr"> No registered device</td>
+                                    <td> No registered device</td>
                                 {% endif %}
                                 {% if pass.last_sent == None %}
-                                    <td name="ls"> No prior e-mail sent</td>
+                                    <td> No prior e-mail sent</td>
                                 {% else %}
-                                    <td name="ls">{{ pass.last_sent }}</td>
+                                    <td>{{ pass.last_sent }}</td>
                                 {% endif %}
                                 <td><a class='mailButton' data-email="{{ member.email }}"
                                        data-full_name="{{ member.full_name }}"
-                                       data-auth="{{ pass.authenticationToken }}" data-last_sent="{{ pass.last_sent }}">
+                                       data-auth="{{ pass.authenticationToken }}" data-last_sent={{ pass.last_sent }}>
                                     <button class='btn btn-default'>Send Pass</button>
                                 </a></td>
                             </tr>

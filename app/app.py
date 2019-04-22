@@ -31,9 +31,9 @@ app.config['MAIL_USERNAME'] = os.environ['SERVER_EMAIL']
 app.config['MAIL_PASSWORD'] = os.environ['SERVER_EMAIL_PASSWORD']
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
-app.config['PASS_FOLDER'] = './pkpass files'
+app.config['PASS_FOLDER'] = './pkpass_files'
 app.config['CERTIFICATES_FOLDER'] = './certificates'
-app.config['UPLOAD_FOLDER'] = './last membership'
+app.config['UPLOAD_FOLDER'] = './uploaded_membership_data'
 mail = Mail(app)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
@@ -89,18 +89,21 @@ def index():
 @app.route("/upload_membership", methods=['GET', 'POST'])
 def upload_membership():
     if request.method == 'POST':
+        logging.debug("In POST upload_membership")
         # check if the post request has the file part
         if 'file' not in request.files:
+            logging.debug("There is no file attached")
             return jsonify({'count': 0})
         file = request.files['file']
         # if user does not select file, browser also
         # submit an empty part without filename
         if file.filename == '':
-            flash('No selected file')
+            logging.debug("There is no file attached")
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
 
             # last_member.csv is the last uploaded
             # filename is current file being uploaded name
@@ -108,11 +111,12 @@ def upload_membership():
             # between the two files.
             count = 0
             if find_difference(filename):
+                logging.debug("ENTERING INSERTUPDATE()")
                 count = insertUpdate()
                 os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
             else:
-                return jsonify({'count': 0})
                 logging.debug("Difference wasn't properly calculated!")
+                return jsonify({'count': 0})
         return jsonify({'count': count})
     return render_template('upload_membership.html')
 
@@ -342,15 +346,17 @@ def unregister_device(version, deviceLibraryIdentifier, passTypeIdentifier, seri
     recievedAuth = request.headers.get('Authorization').split(" ")[1]
     if (version != 'v1') or (passTypeIdentifier != 'pass.org.conservatory.phipps.membership'):
         return not_authorized("Version and Pass Type invalid")
-    device = db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)).get(1)
+    device = db.session.query(Device).filter((Device.device_lib_id == deviceLibraryIdentifier)).first()
     # TODO: Conduct stress tests to test this more
-    cards_device = db.session.query(Card, Device).join(registration).filter(
-        Device.device_lib_id == deviceLibraryIdentifier)
-
-    # for card, device in cards_device:
-    for reg in cards_device.registration:
-        db.session.delete(reg)
-    db.session.commit()
+    try:
+        cards_device = db.session.query(Card, Device).join(registration).filter(
+            Device.device_lib_id == deviceLibraryIdentifier).first()[1]
+        # for card, device in cards_device:
+        for reg in cards_device:
+            db.session.delete(reg)
+        db.session.commit()
+    except:
+        return
     return
 
 
@@ -358,10 +364,10 @@ def unregister_device(version, deviceLibraryIdentifier, passTypeIdentifier, seri
 # POST phippsconservatory.xyz/v1/log
 @app.route("/<version>/log", methods=['POST'])
 def logging_error(version):
-    msgs = request.values.get('logs')
+    msgs = request.json
     if (version != 'v1'):
         return not_authorized("version is invalid")
-    for msg in msgs:
+    for msg in msgs['logs']:
         logging.debug(str(msg))
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
@@ -398,6 +404,7 @@ def index_devices():
 # record by record of the file, inserting new records or
 # updating existing ones
 def insertUpdate():
+    logging.debug("In insertUpdate()")
     update_file = os.path.join(app.config['UPLOAD_FOLDER'], "update.csv")
     try:
         df = pd.read_csv(update_file)
@@ -408,8 +415,11 @@ def insertUpdate():
     diff_count = 0
     try:
         for row in df.itertuples():
+            logging.debug("Checking a row")
+            logging.debug(row.id)
             if str(row.id) == None or row.id == '' or pd.isnull(row.id):
                 break
+
             diff_count += 1
             existing_mem = Member.query.filter_by(id=row.id).first()
             state = False
@@ -428,28 +438,20 @@ def insertUpdate():
             if pd.isna(row.address_2):
                 add_2 = None
             if existing_mem is None:
-                new_member = Member(id=str(row.id), member_level=str(row.level),
-                                    expiration_date=exp_date, status=state,
-                                    full_name=row.first_name + " " + row.last_name,
-                                    associated_members=str(row.associates), address_line_1=str(row.address_1),
-                                    address_line_2=str(add_2),
-                                    city=str(row.city), state=str(row.state), zip=str(row.zip), email=str(row.email),
-                                    add_on_name=str(row.add_ons),
-                                    add_on_value=str(row.quantity))
-                if exp_date is not None:
-                    new_pass = Card(authenticationToken=hashlib.sha1(new_member.id.encode('utf-8')).hexdigest(),
-                                    file_name=row.first_name + row.last_name + ".pkpass",
-                                    last_sent=None,
-                                    last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
-                                        "%Y-%m-%dT%H:%M:%S"))
-                    new_member.cards.append(new_pass)
-                db.session.add(new_member)
+                existing_mem = Member(id=str(row.id), member_level=str(row.level),
+                                      expiration_date=exp_date, status=state,
+                                      full_name=row.first_name + " " + row.last_name,
+                                      associated_members=row.associates, address_line_1=str(row.address_1),
+                                      address_line_2=add_2,
+                                      city=str(row.city), state=str(row.state), zip=str(row.zip).strip(".0"),
+                                      email=str(row.email),
+                                      add_on_name=row.add_ons,
+                                      add_on_value=str(row.quantity).strip(".0"))
+                db.session.add(existing_mem)
                 db.session.commit()
-                if exp_date is not None:
-                    create_member_pass(row.id, new_pass.file_name)
             else:
-                # Update existing member record, create a new pass
-                # and then update existing pass record
+                logging.debug("Updating existing member information")
+                # Update existing member record
                 existing_mem.member_level = row.level
                 existing_mem.expiration_date = exp_date
                 existing_mem.status = state
@@ -461,34 +463,58 @@ def insertUpdate():
                 existing_mem.state = row.state
                 existing_mem.zip = row.zip
                 existing_mem.email = row.email
-                if exp_date is not None:
-                    create_member_pass(row.id, row.first_name + row.last_name + ".pkpass")
+                logging.debug("Completed")
+
+            # Create a new pass (for both new and updates)
+            if exp_date is not None:
+                logging.debug("Creating/updating pass because expiration date is not None")
+                # A previous card record exists
+                try:
+                    logging.debug("Previous card was found")
                     card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
                         member_card_association.c.member_id == row.id).first()[1]
-                    card.last_updated = datetime.now().astimezone(timezone('EST5EDT')).strftime("%Y-%m-%dT%H:%M:%S")
+                    card.last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
+                                        "%Y-%m-%dT%H:%M:%S")
+                except:
+                    # Make a new card
+                    logging.debug("New card created")
+                    card = Card(authenticationToken=hashlib.sha1(existing_mem.id.encode('utf-8')).hexdigest(),
+                                    file_name=row.first_name + row.last_name + ".pkpass",
+                                    last_sent=None,
+                                    last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
+                                        "%Y-%m-%dT%H:%M:%S"))
+                # Attach it to membership
+                existing_mem.cards.append(card)
+                db.session.add(existing_mem)
+                db.session.commit()
+                logging.debug("Card has been added to associated member record")
+
+                # Create the actual pass file
+                logging.debug("Creating actual card now")
+                create_member_pass(row.id, card.file_name)
+
+                # Notify devices attached to this card
+                registrations = Device.query.join(registration).join(Card). \
+                    filter(registration.c.card_id == card.id).all()
+                for device in registrations:
+                    logging.debug("Attempting to send push to APN")
+                    token = device.push_token
+                    alert = {};
+                    client = APNSClient(
+                        certificate=os.path.join(app.config['CERTIFICATES_FOLDER'], "apn_certificate.pem"),
+                        default_error_timeout=10,
+                        default_expiration_offset=2592000,
+                        default_batch_size=100,
+                        default_retries=5)
+                    res = client.send(token, alert)
+                    logging.debug(res.errors)
+                    logging.debug(res.failures)
+                    logging.debug(res.message)
+                    logging.debug(res.successes)
+                    # TODO: if APNs tells you that a push token is invalid,
+                    #  remove that device and its registrations from your server.
+                    client.close()
                     db.session.commit()
-                    registrations = Device.query.join(registration).join(Card). \
-                        filter(registration.c.card_id == card.id).all()
-                    # Notify devices that exists
-                    for device in registrations:
-                        logging.debug("Attempting to send push to APN")
-                        token = device.push_token
-                        alert = {};
-                        client = APNSClient(
-                            certificate=os.path.join(app.config['CERTIFICATES_FOLDER'], "apn_certificate.pem"),
-                            default_error_timeout=10,
-                            default_expiration_offset=2592000,
-                            default_batch_size=100,
-                            default_retries=5)
-                        res = client.send(token, alert)
-                        logging.debug(res.errors)
-                        logging.debug(res.failures)
-                        logging.debug(res.message)
-                        logging.debug(res.successes)
-                        # TODO: if APNs tells you that a push token is invalid,
-                        #  remove that device and its registrations from your server.
-                        client.close()
-                        db.session.commit()
     except IOError:
         return diff_count
     return diff_count
@@ -511,26 +537,49 @@ def find_difference(newcsv):
                         os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"))
         return True
     try:
-        with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
-                os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
-            fileone = t1.readlines()
-            filetwo = t2.readlines()
+        columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
+                   "address_1", "address_2", "city", "state", "zip", "email", "add_on", "quantity"]
+        logging.debug("1. Attempting to find difference of uploaded file")
 
+        if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
+            logging.debug("Old membership data exists")
+        if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], newcsv)):
+            logging.debug("new membership data exists")
+
+        try:
+            with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
+                    os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
+                logging.debug("2a")
+                fileone = t1.readlines()
+                logging.debug("2b")
+                filetwo = t2.readlines()
+                logging.debug("2c")
+        except IOError as e:
+            print(e)
+
+        logging.debug("3. Attempting to find difference of uploaded file")
         # Use sets in the future for faster processing
         with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as outFile:
+            writer = csv.writer(outFile)
+            # writer.writerow(columns)
             for line in filetwo:
+                logging.debug("4. Attempting to find difference of uploaded file")
                 if line not in fileone:
+                    logging.debug("5. Attempting to find difference of uploaded file")
                     outFile.write(line)
+        logging.debug("6. Attempting to find difference of uploaded file")
 
         t1.close()
         t2.close()
         outFile.close()
+        logging.debug("7. Attempting to find difference of uploaded file")
         if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
             os.remove(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
         os.rename(os.path.join(app.config['UPLOAD_FOLDER'], newcsv),
                   os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"))
         return True
     except:
+        logging.debug("Some reading error has occured")
         return False
 
 
@@ -539,9 +588,11 @@ def create_member_pass(id, filename):
     if os.path.isfile(os.path.join(app.config['PASS_FOLDER'], filename)):
         os.remove(os.path.join(app.config['PASS_FOLDER'], filename))
 
+    logging.debug("Looking for Member and card records")
     member = Member.query.filter_by(id=id).first()
     card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
         member_card_association.c.member_id == member.id).first()[1]
+    logging.debug("Member and card record have been found")
     cardInfo = Generic()
 
     # Name, Tier and membership
@@ -587,8 +638,8 @@ def create_member_pass(id, filename):
     passfile.labelColor = 'rgb(255, 255, 255)'
 
     # Icon and Logo needed for pass to be successfully created
-    passfile.addFile('icon.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
-    passfile.addFile('logo.png', open('pass utility folder/PhippsSampleGeneric.pass/logo.png', 'rb'))
+    passfile.addFile('icon.png', open('pass_utility/PhippsSampleGeneric.pass/logo.png', 'rb'))
+    passfile.addFile('logo.png', open('pass_utility/PhippsSampleGeneric.pass/logo.png', 'rb'))
     passfile.webServiceURL = 'https://phippsconservatory.xyz'
     passfile.authenticationToken = str(card.authenticationToken)
     passfile.create(os.path.join(app.config['CERTIFICATES_FOLDER'], "certificate.pem"),
@@ -596,6 +647,7 @@ def create_member_pass(id, filename):
                     os.path.join(app.config['CERTIFICATES_FOLDER'], "wwdr.pem"),
                     os.environ['PEM_PASSWORD'],
                     os.path.join(app.config['PASS_FOLDER'], member.full_name.replace(" ", "") + ".pkpass"))
+    logging.debug("Card created!!!")
     return True
 
 # Configure multithreading in the future for async processing of member data
