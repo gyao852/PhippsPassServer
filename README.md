@@ -22,7 +22,8 @@ can be opened on digital devices for both Apple and Android (Apple comes with a 
 
 For this particular project, at its current state, all passes are created specifically as digital membership cards. Further usages can be available in the future, and are discussed more below.
 
-<img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/dashboard_view.png" width="1200">
+<img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/dashboard_view.png" width="500">
+Fig 1.1 Landing page/dashboard
 
 ## Features
   * Automated Creation and Updating of *passes*
@@ -57,13 +58,19 @@ This REST api service allows for the **C**reaating, **R**etrieving, **U**pdating
 the membership records within the server (which automatically starts the process of creating new *passes* for new members, and updating existing existing ones)
 
 ### Front-End
-TODO: Add pictures for two main functions here
-
 Currently, the front-end component consists of two main features: Sending initial passes to users, and
 uploading a csv file containing membership data (to create/update membership and pass records). Because this is still in developmental phase, additional views are available on the left hand side (such as tables showing the data for members, *pass* data and device data). These additional views should be removed if deployed in production for obvious privacy reasons. They are currently kept for convenience sake in development. Additionally, there is another feature that allows for data to be cleared. Again, this is for development testing purposes and should be removed in end production. At it's current state, this project does not have a login page, and should be one of the higher priorities for future development.
 
+<img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/send_pass_view.png" width="500">
+Fig 1.2 Sending a *pass* to members
+
+
+<img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/upload_membership_view.png" width="500">
+Fig 1.3 Upload new membership data
+
 ### Back-End
-TODO: Add images from /docs here
+Fig 1.4: Interaction between client and server
+<img src="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Art/client_server_interaction_2x.png" width="500" />
 
 There are various components that are in play in the backend, and this section will try to cover in detail each major section:
 1. Data Upload
@@ -73,7 +80,9 @@ There are various components that are in play in the backend, and this section w
         * For each existing member, the rest of their details are updated. A new *pass* record is created. Based on the member's *pass* primary key (card_id), we check to see if there are any registered devices for this pass. Any registered devices are then sent a push notification of a change. The user's device will then retrieve a list of changed *passes* (a device can have multiple *passes*). It will then send a request for each change *pass*, and replace the old *pass* with the new
         * For each new member, a new membership record and *pass* record is simply created
         * Each member's pass is stored on the local machine. In terms of space complexity, each .pkpass file is only a few megabytes total, and will take up at most a few gigabytes. Local storage is the current means of the server being able to find and send the correct *pass*. Future storage is discussed further below
-    
+    <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/entity_relationship_diagram.png" width="500">
+Fig 1.5 Entity Relationship Diagram of database
+
 2. Sending a Pass
     * Passes are sent to a member based on their associated e-mail address with that membership record
     * After clicking the 'Send Pass' button, that card record's last_sent field will be updated
@@ -81,10 +90,12 @@ There are various components that are in play in the backend, and this section w
     * Passes are attached to the e-mail as a .pkpass file.
         * Adding to a smartphone will also register the device, with the server receiving a unique push_token that, alongside other authentication metrics, will be used to send updates in real-time
     * After a member has added the *pass* to their phone, it will update the associated card record's last_update field, to help indicate for the user that this *pass* has been added by the end-client
+    <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/object_level_interaction_send_pass.png" width="500">
+Fig 1.6 Entity Relationship Diagram of database
+    <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/object_level_interaction_update.png" width="500">
+    Fig 1.7 Entity Relationship Diagram of database
     
-Fig 1.1: Interaction between client and server
 
-<img src="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Art/client_server_interaction_2x.png" width="500" />
     
 *More specific details regarding interactions from client to server can
     be found [here](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Updating.html#//apple_ref/doc/uid/TP40012195-CH5-SW1), and AppleKit REST protocols can be found [here](https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html).
