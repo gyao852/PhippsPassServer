@@ -45,27 +45,27 @@
                         </tr>
                         </thead>
                         <tbody>
-                        {% for member,pass,device in data %}
+                        {% for record in data %}
                             <tr>
                                 <td><input type="checkbox" name="send_mail"></td>
-                                <td>{{ member.id }}</td>
-                                <td>{{ member.full_name }}</td>
-                                <td>{{ member.member_level }}</td>
-                                <td>{{ member.expiration_date }}</td>
-                                <td>{{ pass.last_updated }}</td>
-                                {% if device in pass.devices %}
-                                    <td>{{ device.date_registered }}</td>
+                                <td>{{ record.member_id }}</td>
+                                <td>{{ record.member_full_name }}</td>
+                                <td>{{ record.member_member_level }}</td>
+                                <td>{{ record.member_expiration_date }}</td>
+                                <td>{{ record.card_last_updated }}</td>
+                                {% if record.registered_date_registered %}
+                                    <td>{{ record.registered_date_registered }}</td>
                                 {% else %}
                                     <td> No registered device</td>
                                 {% endif %}
-                                {% if pass.last_sent == None %}
+                                {% if record.card_last_sent == None %}
                                     <td> No prior e-mail sent</td>
                                 {% else %}
-                                    <td>{{ pass.last_sent }}</td>
+                                    <td>{{ record.card_last_sent }}</td>
                                 {% endif %}
-                                <td><a class='mailButton' data-email="{{ member.email }}"
-                                       data-full_name="{{ member.full_name }}"
-                                       data-auth="{{ pass.authenticationToken }}" data-last_sent={{ pass.last_sent }}>
+                                <td><a class='mailButton' data-email="{{ record.member_email }}"
+                                       data-full_name="{{ record.member_full_name }}"
+                                       data-auth="{{ record.card_authentication_Token }}" data-last_sent={{ record.card_last_sent }}>
                                     <button class='btn btn-default'>Send Pass</button>
                                 </a></td>
                             </tr>

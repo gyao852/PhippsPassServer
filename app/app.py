@@ -80,10 +80,15 @@ def index():
     members = Member.query.all()
     passes = Card.query.all()
     devices = Device.query.all()
+    registeredPasses = db.engine.execute("select card_id from card_device_association GROUP BY card_id;")
+    registeredPassesCount = 0
+    for row in registeredPasses:
+        registeredPassesCount+=1
+
     sentRequests = len(Card.query.filter(Card.last_sent != None).all())
 
     return render_template('index.html', memberCnt=len(members), passCnt=len(passes), deviceCnt=len(devices),
-                           pendingCnt=sentRequests-len(devices))
+                           pendingCnt=sentRequests-registeredPassesCount)
 
 
 # Upload membership.csv file
@@ -126,8 +131,21 @@ def upload_membership():
 # GET phippsconservatory.xyz/send_pass
 @app.route("/send_pass", methods=['GET'])
 def send_passes():
-    data = db.session.query(Member, Card, Device).join(member_card_association).join(Card).outerjoin(
-        registration).outerjoin(Device).all()
+   # data = db.session.query(Member, Card, Device).join(member_card_association).join(Card).outerjoin(registration).outerjoin(Device).all();
+    #  .join(member_card_association).outerjoin(Card).outerjoin(
+        #registration).outerjoin(Device).all()
+    data = db.engine.execute("select member.id as member_id, member.full_name AS member_full_name, " +
+                             "member.member_level AS member_member_level, " +
+                             "member.expiration_date AS member_expiration_date, " +
+                             "card.last_updated AS card_last_updated, registered.date_registered as registered_date_registered, card.last_sent as card_last_sent, " +
+                             "member.email as member_email, 'authenticationToken' AS card_authentication_Token FROM Member " +
+                             "INNER JOIN member_card_association ON member_card_association.member_id=member.id " +
+                             "INNER JOIN card ON member_card_association.card_id = card.id " +
+                             "LEFT JOIN (select date_registered, card_id FROM device "+
+                             "JOIN card_device_association ON card_device_association.device_id = device.id " +
+                             "WHERE id IN (select device_id FROM (select card_id, device_id, " +
+                             "ROW_NUMBER() OVER (PARTITION BY card_ID) as rn from card_device_association " +
+                             "GROUP BY card_id, device_id) t where t.rn=1)) AS registered ON registered.card_id = card.id;")
     return render_template('send_passes.html', data=data)
 
 
