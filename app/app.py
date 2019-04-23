@@ -80,8 +80,10 @@ def index():
     members = Member.query.all()
     passes = Card.query.all()
     devices = Device.query.all()
+    sentRequests = len(Card.query.filter(Card.last_sent != None).all())
+
     return render_template('index.html', memberCnt=len(members), passCnt=len(passes), deviceCnt=len(devices),
-                           pendingCnt=0)
+                           pendingCnt=sentRequests-len(devices))
 
 
 # Upload membership.csv file
@@ -103,7 +105,6 @@ def upload_membership():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
 
             # last_member.csv is the last uploaded
             # filename is current file being uploaded name
@@ -153,48 +154,32 @@ def send_mail():
                       recipients=[member_email])
         msg.html = '''
             Dear {},<br><br>
-            Phipps Conservatory is continuing it's
-            mission of reducing our carbon footprint. One of our new initiatives
-            is providing members with their membership cards available digitally within your phone. Attached to this
-            email is your membership card that can be saved and loaded onto your devices.<br><br>
-            For Apple devices:
+            Phipps Conservatory is continuing its mission of reducing our carbon footprint. 
+            One of our new initiatives is providing members with their membership cards available digitally 
+            within your phone. Attached to this email is your membership card that can be saved and loaded
+             onto your devices.
+            <br><br>
+            If you are using an iPhone: 
             <ul>
-                <li> If you're opening this email on your iPhone, simply double tap on the attached .pkpass file, and it 
-                should prompt you to add your new membership pass to the 'Wallet' Application (available by default on all
-                iPhone devices). On the top right, tap on 'Add'.<br>
-                <li> If you're on your MacBook, you can also double click on the attached file for it to be added to all
-                 your Apple devices.
+                <li> Double tap on the attached .pkpass file. 
+                You will be prompted to add your new membership pass to the 'Wallet' Application <br>
+                <li> On the top right, tap on 'Add'
                 <br>
                 NOTE: This will only work if you've connected your iPhone and MacBook with the same iCloud. If not, you can
                  download your .pkpass file, and 'Airdrop' it to your iPhone.
             </ul>
-            For Android phones:<br>
+            If you are using an Android phone:<br>
             <ul>
-                <li> Go to the Google Play Store, and install the application 'Passes'<br>
-                <li> Once 'Passes' is installed, double tap on the attached .pkpass file. You will be asked which application
-                 to choose from to open this file. Tap on 'Passes', and your membership card will automatically be added.<br>
+                <li> Go to the Google Play Store, and install the application 'Passes''<br>
+                <li> Once 'Passes' is installed, double tap on the attached .pkpass file. You will be asked which 
+                application to choose from to open this file. Tap on 'Passes<br>
             </ul>
             <br>
-            For Windows Computers:
-            <ul>
-                <li> If you have an iPhone, but not a MacBook, you will have to first need to have iTunes installed on your computer.
-                This is needed in order to safely transfer files between your computer to your iphone safely. 
-                <br>
-                <li> Download the .pkpass file attached onto your computer. 
-                <br>
-                <li> Connect your iPhone to your computer via the provided charging cable. This should automatically open up
-                iTunes; if not, open iTunes.
-                <br>
-                <li> In iTunes click on the 'Device' button, then click on 'File Sharing' in the sidebar. You should be able to 
-                see a list of applications that can transfer files from your computer to your phone. Click on one, and
-                then find the .pkpass file in your downloads folder. Finally click on 'Sync' to transfer the .pkpass file to your
-                iPhone.
-                <br>
-            </ul>
             
             This digital membership pass is available for use even when your device is not connected to the Internet, 
-            and thus can be used at anytime after saving to your phone. Updates to your membership will be reflected on the next business day,
-             and will require access to the Internet. <br>
+            and thus can be used anytime after saving it to your phone. Updates to your membership will be reflected on 
+            the next business day, and will require access to the Internet. <br>
+            If you have any further questions regarding your digital pass, please feel free to contact us. 
             We hope to see you visit again soon!<br><br>
             Mike Cassidy<br>
             Membership Administrator<br>
@@ -210,8 +195,8 @@ def send_mail():
             '''.format(member_name.split(" ")[0])
 
         filename = "{}.pkpass".format(member_name.replace(" ", ""))
-        with app.open_resource("pkpass files/{}".format(filename)) as fp:
-            msg.attach("{}".format(filename), "pkpass files/{}".format(filename), fp.read())
+        with app.open_resource("pkpass_files/{}".format(filename)) as fp:
+            msg.attach("{}".format(filename), "pkpass_files/{}".format(filename), fp.read())
         mail.send(msg)
         aPass = Card.query.filter_by(authenticationToken=member_auth).first()
 
@@ -473,16 +458,16 @@ def insertUpdate():
                     logging.debug("Previous card was found")
                     card = db.session.query(Member, Card).join(member_card_association).join(Card).filter(
                         member_card_association.c.member_id == row.id).first()[1]
-                    card.last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
-                                        "%Y-%m-%dT%H:%M:%S")
+                    card.last_updated = datetime.now().astimezone(timezone('EST5EDT')).strftime(
+                        "%Y-%m-%dT%H:%M:%S")
                 except:
                     # Make a new card
                     logging.debug("New card created")
                     card = Card(authenticationToken=hashlib.sha1(existing_mem.id.encode('utf-8')).hexdigest(),
-                                    file_name=row.first_name + row.last_name + ".pkpass",
-                                    last_sent=None,
-                                    last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
-                                        "%Y-%m-%dT%H:%M:%S"))
+                                file_name=row.first_name + row.last_name + ".pkpass",
+                                last_sent=None,
+                                last_updated=datetime.now().astimezone(timezone('EST5EDT')).strftime(
+                                    "%Y-%m-%dT%H:%M:%S"))
                 # Attach it to membership
                 existing_mem.cards.append(card)
                 db.session.add(existing_mem)
@@ -538,36 +523,30 @@ def find_difference(newcsv):
         return True
     try:
         columns = ["id", "level", "expiration_date", "status", "associates", "last_name", "first_name",
-                   "address_1", "address_2", "city", "state", "zip", "email", "add_on", "quantity"]
+                   "address_1", "address_2", "city", "state", "zip", "email", "add_ons", "quantity"]
         logging.debug("1. Attempting to find difference of uploaded file")
 
-        if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv")):
-            logging.debug("Old membership data exists")
-        if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], newcsv)):
-            logging.debug("new membership data exists")
-
-        try:
-            with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r') as t1, open(
-                    os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r') as t2:
-                logging.debug("2a")
+        # encoding='utf-8' and then try with errors='replace'
+        # rb is read via bytes; trying manual encoding for now
+        # No longer a read permission error but a stupid pesky decode error
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], "last_member.csv"), 'r', encoding='utf-8') as t1, open(
+                os.path.join(app.config['UPLOAD_FOLDER'], newcsv), 'r', encoding='utf-8') as t2:
+            try:
                 fileone = t1.readlines()
-                logging.debug("2b")
                 filetwo = t2.readlines()
-                logging.debug("2c")
-        except IOError as e:
-            print(e)
+                logging.debug("2. Passed readlines()")
+            except Exception as e:
+                logging.debug(type(e).__name__)
+                logging.debug(e)
 
-        logging.debug("3. Attempting to find difference of uploaded file")
+        logging.debug("3. Now comparing line by line")
         # Use sets in the future for faster processing
-        with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w') as outFile:
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], "update.csv"), 'w', encoding='utf-8') as outFile:
             writer = csv.writer(outFile)
             # writer.writerow(columns)
             for line in filetwo:
-                logging.debug("4. Attempting to find difference of uploaded file")
                 if line not in fileone:
-                    logging.debug("5. Attempting to find difference of uploaded file")
                     outFile.write(line)
-        logging.debug("6. Attempting to find difference of uploaded file")
 
         t1.close()
         t2.close()
