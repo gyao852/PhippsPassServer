@@ -233,7 +233,6 @@ $ docker build -t phipps-passes .
 ```
 
 #### Deployment via AWS Beanstalk & AWS RDS
-TODO: Add images
 With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment via AWS Beanstalk, and AWS RDS. 
 
 Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
@@ -339,7 +338,7 @@ There is still a wide list of items that this project would need to get closer t
 
 ## Acknowledgments
 The front-end GUI is a customized version of the open source BootStrap4 dashboard, SB Admin 2. This UI is licensed under the MIT License, and is available for free. It can be found [here](https://startbootstrap.com/themes/sb-admin-2/) for future reference.
-TODO: Finish this
+This web application was developed with the support of Professor Heimann and Professor Moussawi from the Carnegie Mellon University, as well as Mike Cassidy from the Phipps Conservatory and Botanical Gardens. 
 
 ## License
 
