@@ -131,14 +131,11 @@ def upload_membership():
 # GET phippsconservatory.xyz/send_pass
 @app.route("/send_pass", methods=['GET'])
 def send_passes():
-   # data = db.session.query(Member, Card, Device).join(member_card_association).join(Card).outerjoin(registration).outerjoin(Device).all();
-    #  .join(member_card_association).outerjoin(Card).outerjoin(
-        #registration).outerjoin(Device).all()
     data = db.engine.execute("select member.id as member_id, member.full_name AS member_full_name, " +
                              "member.member_level AS member_member_level, " +
                              "member.expiration_date AS member_expiration_date, " +
                              "card.last_updated AS card_last_updated, registered.date_registered as registered_date_registered, card.last_sent as card_last_sent, " +
-                             "member.email as member_email, 'authenticationToken' AS card_authentication_Token FROM Member " +
+                             "member.email as member_email, \"authenticationToken\" AS card_authentication_token FROM Member " +
                              "INNER JOIN member_card_association ON member_card_association.member_id=member.id " +
                              "INNER JOIN card ON member_card_association.card_id = card.id " +
                              "LEFT JOIN (select date_registered, card_id FROM device "+
@@ -146,6 +143,8 @@ def send_passes():
                              "WHERE id IN (select device_id FROM (select card_id, device_id, " +
                              "ROW_NUMBER() OVER (PARTITION BY card_ID) as rn from card_device_association " +
                              "GROUP BY card_id, device_id) t where t.rn=1)) AS registered ON registered.card_id = card.id;")
+    # for row in data:
+    #     print(row["card_authentication_token"])
     return render_template('send_passes.html', data=data)
 
 
@@ -155,6 +154,7 @@ def send_passes():
 def send_mail():
     member_name = request.values.get('name', None)
     if member_name is not None:
+        x = request.values
         member_auth = request.values.get('authtok', None)
         member_email = request.values.get('email', None)
         selectedMembers = [{"name": member_name, "email": member_email, "auth": member_auth}]
@@ -428,6 +428,7 @@ def insertUpdate():
             state = False
             exp_date = None
             add_2 = row.address_2
+            add_on_val = row.add_ons
             if row.status == 'Active':
                 state = True
             else:
@@ -440,6 +441,8 @@ def insertUpdate():
                         pass
             if pd.isna(row.address_2):
                 add_2 = None
+            if pd.isna(row.add_ons):
+                add_on_val = None
             if existing_mem is None:
                 existing_mem = Member(id=str(row.id), member_level=str(row.level),
                                       expiration_date=exp_date, status=state,
@@ -448,7 +451,7 @@ def insertUpdate():
                                       address_line_2=add_2,
                                       city=str(row.city), state=str(row.state), zip=str(row.zip).strip(".0"),
                                       email=str(row.email),
-                                      add_on_name=row.add_ons,
+                                      add_on_name=add_on_val,
                                       add_on_value=str(row.quantity).strip(".0"))
                 db.session.add(existing_mem)
                 db.session.commit()
@@ -609,8 +612,8 @@ def create_member_pass(id, filename):
     fullAddress += member.city + " " + member.state + " " + str(member.zip)
     cardInfo.addAuxiliaryField('address', fullAddress, 'Address Line 1')
     cardInfo.addBackField('associates', member.associated_members, 'Associate Members')
-    # if member.additional_child is not None:
-    # cardInfo.addBackField('addons', member.additiona_child, 'Add-ons')
+    if member.add_on_name is not None:
+        cardInfo.addBackField('addons', member.add_on_value, member.add_on_name)
     cardInfo.addBackField('operating-hours', 'Saturday - Thursday: 9:30 a.m. - 5 p.m.\nFriday: 9:30 a.m. - 10 p.m.',
                           'Hours')
     cardInfo.addBackField('member-info', '(412)-315-0656\nmembers@phipps.conservatory.org', 'Member Info')

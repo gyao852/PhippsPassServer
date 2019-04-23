@@ -20,7 +20,9 @@ Their mission is to to "*advance sustainability and promote human and environmen
 To help continue their mission, this independent project's goal is to create a relatively automated way of generating and updating *passes*, which
 can be opened on digital devices for both Apple and Android (Apple comes with a pre-installed wallet that can automatically add and open passes, and the Google Play Market has an comparable [app](https://play.google.com/store/apps/details?id=io.walletpasses.android&hl=en). This is achieved through a rest API service that follows Apple's PassKit Web Service [specification](https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html).
 
-For this particular project, at its current state, all passes are created specifically as digital membership cards. Further applications can be available in the future, and are discussed more below.
+For this particular project, at its current state, all passes are created specifically as digital membership cards. Further usages can be available in the future, and are discussed more below.
+
+<img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/dashboard_view.png" width="1200">
 
 ## Features
   * Automated Creation and Updating of *passes*

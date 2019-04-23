@@ -63,11 +63,14 @@
                                 {% else %}
                                     <td>{{ record.card_last_sent }}</td>
                                 {% endif %}
-                                <td><a class='mailButton' data-email="{{ record.member_email }}"
+                                <td>
+                                    <a class='mailButton' data-email="{{ record.member_email }}"
                                        data-full_name="{{ record.member_full_name }}"
-                                       data-auth="{{ record.card_authentication_Token }}" data-last_sent={{ record.card_last_sent }}>
-                                    <button class='btn btn-default'>Send Pass</button>
-                                </a></td>
+                                       data-auth="{{ record.card_authentication_token }}"
+                                       data-last_sent={{ record.card_last_sent }}>
+                                        <button class='btn btn-default'>Send Pass</button>
+                                    </a>
+                                </td>
                             </tr>
                         {% endfor %}
                         </tbody>
