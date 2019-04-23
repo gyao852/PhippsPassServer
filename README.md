@@ -65,6 +65,7 @@ uploading a csv file containing membership data (to create/update membership and
 Fig 1.2 Sending a *pass* to members
 
 
+
 <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/upload_membership_view.png" width="1200">
 Fig 1.3 Upload new membership data
 
@@ -72,6 +73,7 @@ Fig 1.3 Upload new membership data
 
 <img src="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Art/client_server_interaction_2x.png" width="500" />
 Fig 1.4: Interaction between client and server
+
 
 
 There are various components that are in play in the backend, and this section will try to cover in detail each major section:
@@ -95,10 +97,8 @@ There are various components that are in play in the backend, and this section w
     <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/object_level_interaction_send_pass.png" width="1200">
     Fig 1.6 Entity Relationship Diagram of database
     
-        <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/object_level_interaction_update.png" width="1200">
-        Fig 1.7 Entity Relationship Diagram of database
-    
-
+    <img src="https://github.com/gyao852/PhippsPassServer/blob/master/docs/object_level_interaction_update.png" width="1200">
+    Fig 1.7 Entity Relationship Diagram of database
     
 *More specific details regarding interactions from client to server can
     be found [here](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/Updating.html#//apple_ref/doc/uid/TP40012195-CH5-SW1), and AppleKit REST protocols can be found [here](https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html).
