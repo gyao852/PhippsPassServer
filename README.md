@@ -235,7 +235,7 @@ $ docker build -t phipps-passes .
 #### Deployment via AWS Beanstalk & AWS RDS
 With the provided DockerFile template, we can easily create a Docker image of the entire project to be deploy onto any virtual machine. For demonstration purposes, one such example can be done via Amazon Web Service's Beanstalk. The following instructions explain a thorough process of deployment via AWS Beanstalk, and AWS RDS. 
 
-Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https. If you are a CMU IS student, please contact georgeY852@gmail.com to have access to this domain for future testing. 
+Note: the domain phippsconservatory.xyz is used in the following examples, and is necessary for later SSL certificate to achieve https.
 
 Setting up Remote Database with Relational Database Service
 1. Log into AWS, and select RDS
